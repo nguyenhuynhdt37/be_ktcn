@@ -1,1 +1,23 @@
 Generic single-database configuration with an async dbapi.
+
+nhập thử nhé.
+
+Tất cả các tài khoản dưới đây đều dùng chung một mật khẩu là: Password@123
+
+1. Super Admin (Quản trị viên cấp cao nhất)
+
+Username: superadmin
+Email: superadmin@university.edu.vn
+2. Admin (Quản trị viên)
+
+Username: hangnguyen5897
+Email: hang.nguyen1675@icloud.com
+3. Editor (Biên tập viên)
+
+Username: xuantong6513
+Email: xuan.tong5384@yahoo.com
+4. Author (Tác giả/Người viết bài)
+
+Username: toankieu9664
+Email: toan.kieu6966@hotmail.com
+Bạn có thể dùng email hoặc username và mật khẩu trên để thử call API login (POST /api/v1/auth/login) và lấy token nhé!

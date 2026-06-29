@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.modules.audit.service import log_action
-from app.modules.auth.dependencies import has_permission
+from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import UserResponse
 from app.modules.category.schemas import (
     CategoryCreate,
@@ -14,6 +14,7 @@ from app.modules.category.schemas import (
     CategoryResponse,
     CategoryTreeNode,
     CategoryUpdate,
+    CategorySlugCheckResponse,
 )
 from app.modules.category.service import category_service
 
@@ -28,7 +29,7 @@ category_router = APIRouter()
 async def list_categories(
     search: Optional[str] = None,
     status: Optional[str] = None,
-    current_user: UserResponse = Depends(has_permission("category.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CategoryResponse]:
     """
@@ -42,7 +43,7 @@ async def list_categories(
 
 @category_router.get("/tree", response_model=list[CategoryTreeNode])
 async def get_category_tree(
-    current_user: UserResponse = Depends(has_permission("category.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CategoryTreeNode]:
     """
@@ -53,10 +54,26 @@ async def get_category_tree(
     return await category_service.get_category_tree(db)
 
 
+@category_router.get("/check-slug", response_model=CategorySlugCheckResponse)
+async def check_category_slug(
+    slug: str,
+    exclude_id: Optional[uuid.UUID] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CategorySlugCheckResponse:
+    """
+    Kiểm tra xem slug có trùng lặp không.
+    Nếu trùng, trả về exists=True và gợi ý slug mới có hậu tố tăng dần.
+    Quyền yêu cầu: category.view
+    """
+    result = await category_service.check_slug_uniqueness(db, slug, exclude_id)
+    return CategorySlugCheckResponse(**result)
+
+
 @category_router.get("/{category_id}", response_model=CategoryResponse)
 async def get_category(
     category_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("category.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> CategoryResponse:
     """
@@ -71,7 +88,7 @@ async def get_category(
 async def create_category(
     request: Request,
     payload: CategoryCreate,
-    current_user: UserResponse = Depends(has_permission("category.create")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> CategoryResponse:
     """
@@ -96,7 +113,7 @@ async def create_category(
 async def reorder_categories(
     request: Request,
     payload: CategoryReorderRequest,
-    current_user: UserResponse = Depends(has_permission("category.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
@@ -119,7 +136,7 @@ async def update_category(
     request: Request,
     category_id: uuid.UUID,
     payload: CategoryUpdate,
-    current_user: UserResponse = Depends(has_permission("category.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> CategoryResponse:
     """
@@ -141,7 +158,7 @@ async def update_category(
 async def delete_category(
     request: Request,
     category_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("category.delete")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """

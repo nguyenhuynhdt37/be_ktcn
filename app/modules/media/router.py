@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.modules.audit.service import log_action
-from app.modules.auth.dependencies import has_permission
+from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import UserResponse
 from app.modules.media.schemas import (
     FileCopyRequest,
@@ -27,7 +27,7 @@ media_service = MediaService()
 async def create_folder(
     request: Request,
     payload: FolderCreate,
-    current_user: UserResponse = Depends(has_permission("media.create")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MediaItemResponse:
     """
@@ -49,7 +49,7 @@ async def create_folder(
 @media_router.get("", response_model=List[MediaItemResponse])
 async def list_directory(
     parent_id: Optional[uuid.UUID] = None,
-    current_user: UserResponse = Depends(has_permission("media.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> List[MediaItemResponse]:
     """
@@ -64,7 +64,7 @@ async def upload_file(
     request: Request,
     file: UploadFile = File(...),
     parent_id: Optional[uuid.UUID] = Form(None),
-    current_user: UserResponse = Depends(has_permission("media.create")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MediaItemResponse:
     """
@@ -94,7 +94,7 @@ async def upload_file(
 @media_router.get("/{media_id}/download")
 async def download_file(
     media_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("media.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """
@@ -112,7 +112,7 @@ async def download_file(
 @media_router.get("/{media_id}/url")
 async def get_url(
     media_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("media.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
@@ -128,7 +128,7 @@ async def rename_item(
     request: Request,
     media_id: uuid.UUID,
     payload: ItemRename,
-    current_user: UserResponse = Depends(has_permission("media.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MediaItemResponse:
     """
@@ -149,7 +149,7 @@ async def move_item(
     request: Request,
     media_id: uuid.UUID,
     payload: ItemMove,
-    current_user: UserResponse = Depends(has_permission("media.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MediaItemResponse:
     """
@@ -170,7 +170,7 @@ async def copy_file(
     request: Request,
     media_id: uuid.UUID,
     payload: FileCopyRequest,
-    current_user: UserResponse = Depends(has_permission("media.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MediaItemResponse:
     """
@@ -190,7 +190,7 @@ async def copy_file(
 async def delete_item(
     request: Request,
     media_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("media.delete")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
@@ -208,7 +208,7 @@ async def generate_presigned_upload(
     filename: str,
     content_type: str,
     expires_in: int = 3600,
-    current_user: UserResponse = Depends(has_permission("media.create")),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> PresignedUrlResponse:
     """
     Sinh S3 presigned post URL để client tự tải file lên MinIO một cách bảo mật.
@@ -224,7 +224,7 @@ async def generate_presigned_upload(
 async def generate_presigned_download(
     media_id: uuid.UUID,
     expires_in: int = 3600,
-    current_user: UserResponse = Depends(has_permission("media.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """

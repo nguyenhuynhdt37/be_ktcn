@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.modules.audit.service import log_action
-from app.modules.auth.dependencies import has_permission
+from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import UserResponse
 from app.modules.menu.schemas import (
     MenuCreate,
@@ -31,7 +31,7 @@ menu_router = APIRouter()
 
 @menu_router.get("/config/icons", response_model=list[IconCategory])
 async def get_curated_icons(
-    current_user: UserResponse = Depends(has_permission("menu.view")),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> list[IconCategory]:
     """
     Lấy danh sách các Icon khuyên dùng dành cho website Trường đại học (dùng Lucide Icons/FontAwesome).
@@ -92,7 +92,7 @@ async def get_curated_icons(
 
 @menu_router.get("", response_model=list[MenuResponse])
 async def list_menus(
-    current_user: UserResponse = Depends(has_permission("menu.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[MenuResponse]:
     """
@@ -107,7 +107,7 @@ async def list_menus(
 async def create_menu(
     request: Request,
     payload: MenuCreate,
-    current_user: UserResponse = Depends(has_permission("menu.create")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuResponse:
     """
@@ -127,7 +127,7 @@ async def create_menu(
 @menu_router.get("/code/{code}", response_model=MenuTreeResponse)
 async def get_menu_tree_by_code(
     code: str,
-    current_user: UserResponse = Depends(has_permission("menu.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuTreeResponse:
     """
@@ -140,7 +140,7 @@ async def get_menu_tree_by_code(
 @menu_router.get("/{menu_id}", response_model=MenuResponse)
 async def get_menu(
     menu_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("menu.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuResponse:
     """
@@ -156,7 +156,7 @@ async def update_menu(
     request: Request,
     menu_id: uuid.UUID,
     payload: MenuUpdate,
-    current_user: UserResponse = Depends(has_permission("menu.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuResponse:
     """
@@ -177,7 +177,7 @@ async def update_menu(
 async def delete_menu(
     request: Request,
     menu_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("menu.delete")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
@@ -199,7 +199,7 @@ async def delete_menu(
 @menu_router.get("/{menu_id}/tree", response_model=MenuTreeResponse)
 async def get_menu_tree(
     menu_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("menu.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuTreeResponse:
     """
@@ -215,7 +215,7 @@ async def reorder_menu_items(
     request: Request,
     menu_id: uuid.UUID,
     payload: MenuItemReorderRequest,
-    current_user: UserResponse = Depends(has_permission("menu.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
@@ -246,7 +246,7 @@ async def create_menu_item(
     request: Request,
     menu_id: uuid.UUID,
     payload: MenuItemCreate,
-    current_user: UserResponse = Depends(has_permission("menu.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuItemResponse:
     """
@@ -271,7 +271,7 @@ async def create_menu_item(
 async def get_menu_item(
     menu_id: uuid.UUID,
     item_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("menu.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuItemResponse:
     """
@@ -287,7 +287,7 @@ async def update_menu_item(
     menu_id: uuid.UUID,
     item_id: uuid.UUID,
     payload: MenuItemUpdate,
-    current_user: UserResponse = Depends(has_permission("menu.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuItemResponse:
     """
@@ -314,7 +314,7 @@ async def delete_menu_item(
     request: Request,
     menu_id: uuid.UUID,
     item_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("menu.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """

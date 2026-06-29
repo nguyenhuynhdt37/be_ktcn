@@ -96,8 +96,7 @@ class CategoryService:
         while True:
             # Kiểm tra xem slug_candidate có tồn tại ở bản ghi nào khác không
             query = select(Category.id).where(
-                Category.slug == slug_candidate, 
-                Category.deleted_at == None
+                Category.slug == slug_candidate
             )
             if current_id:
                 query = query.where(Category.id != current_id)
@@ -314,6 +313,15 @@ class CategoryService:
             db.add(cat)
 
         logger.info(f"Batch reordered {len(data.items)} categories successfully by user {current_user_id}")
+
+    async def check_slug_uniqueness(self, db: AsyncSession, slug: str, exclude_id: Optional[uuid.UUID] = None) -> dict:
+        """Kiểm tra xem slug có trùng lặp không và trả về đề xuất slug mới không trùng."""
+        suggested = await self._resolve_unique_slug(db, slug, current_id=exclude_id)
+        exists = (suggested != slug)
+        return {
+            "exists": exists,
+            "suggested_slug": suggested
+        }
 
 
 category_service = CategoryService()

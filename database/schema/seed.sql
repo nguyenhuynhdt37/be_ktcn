@@ -588,6 +588,13 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES
 
 -- 6.3 Editor Mappings
 INSERT INTO role_permissions (role_id, permission_id) VALUES
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', '664c9515-e4bc-5ead-bb63-336043bcd81a'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', '5db3466e-ccbb-5f71-ace1-b7cf3f6f39bd'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', '84cdb952-f765-57a4-ade9-fae2748603c2'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', 'f274cc64-5017-5c8d-8a55-714fb620c5aa'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', 'e51f0b77-fd7d-5959-8275-42fdcd85c2f6'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', '231565ce-92b7-58bd-b53d-3e3279a34c9e'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', '19dec3d3-2b70-58f9-a5dd-37b29419ffd0'),
 ('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', 'ae497478-f188-513c-939f-661a36bf5a76'),
 ('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', '92ec922a-df7b-5c8f-92ac-8ae3749126c6'),
 ('d1017cf7-88b3-4f9e-c616-3e4b3c75ad03', '8bf00c5b-e2f3-535f-8e1f-43e7f04009d5'),
@@ -612,6 +619,10 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES
 
 -- 6.4 Author Mappings
 INSERT INTO role_permissions (role_id, permission_id) VALUES
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad04', '664c9515-e4bc-5ead-bb63-336043bcd81a'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad04', '5db3466e-ccbb-5f71-ace1-b7cf3f6f39bd'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad04', 'e51f0b77-fd7d-5959-8275-42fdcd85c2f6'),
+('d1017cf7-88b3-4f9e-c616-3e4b3c75ad04', 'c83cb20b-6d15-5fa3-8607-7407236a1044'),
 ('d1017cf7-88b3-4f9e-c616-3e4b3c75ad04', 'ae497478-f188-513c-939f-661a36bf5a76'),
 ('d1017cf7-88b3-4f9e-c616-3e4b3c75ad04', 'e79a4192-f56a-537a-9398-a4b00fb2bd9b'),
 ('d1017cf7-88b3-4f9e-c616-3e4b3c75ad04', '8bf00c5b-e2f3-535f-8e1f-43e7f04009d5'),

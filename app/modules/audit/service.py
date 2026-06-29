@@ -12,6 +12,19 @@ from app.modules.audit.schemas import AuditLogResponse
 from app.modules.auth.schemas import UserResponse
 
 
+def _make_serializable(data: Any) -> Any:
+    """Helper đệ quy chuyển đổi UUID và Datetime trong dict thành string để lưu vào JSON column."""
+    if isinstance(data, dict):
+        return {k: _make_serializable(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [_make_serializable(x) for x in data]
+    elif isinstance(data, uuid.UUID):
+        return str(data)
+    elif isinstance(data, datetime):
+        return data.isoformat()
+    return data
+
+
 async def log_action(
     db: AsyncSession,
     actor: UserResponse,
@@ -39,13 +52,16 @@ async def log_action(
         ip_address = request.client.host if request.client else None
         user_agent = request.headers.get("user-agent")
 
+    # Đảm bảo changes là JSON serializable (convert UUID -> str)
+    serializable_changes = _make_serializable(changes) if changes is not None else None
+
     entry = AuditLog(
         actor_id=actor.id,
         actor_username=actor.username,
         action=action,
         target_type=target_type,
         target_id=target_id,
-        changes=changes,
+        changes=serializable_changes,
         ip_address=ip_address,
         user_agent=user_agent,
         created_at=datetime.now(timezone.utc),

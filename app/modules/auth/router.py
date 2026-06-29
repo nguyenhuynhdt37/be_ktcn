@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.exceptions import TooManyRequestsException, UnauthorizedException
 from app.core.security import decode_access_token
-from app.modules.auth.dependencies import get_current_user, has_permission, require_superadmin
+from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
 from app.shared.rate_limiter import check_rate_limit
 from app.shared.redis import get_redis
@@ -24,15 +24,7 @@ from app.modules.auth.schemas import (
     UserResponse,
     UserListResponse,
     UserListItemResponse,
-    UserAccessOverviewResponse,
     UserSessionResponse,
-    RoleResponse,
-    RoleCreate,
-    RoleUpdate,
-    RoleDetailResponse,
-    RoleListItemResponse,
-    PermissionResponse,
-    RoleAssignPermissions,
     UserCreate,
     UserUpdate,
     UserDetailResponse,
@@ -100,7 +92,7 @@ async def login(
     login_user_id = uuid.UUID(jwt_payload["sub"])
     login_actor = UserResponse(
         id=login_user_id, username=credentials.username, email="",
-        is_active=True, role="user", permissions=[],
+        is_active=True,
     )
     await log_action(db, login_actor, "AUTH_LOGIN", "session", None, {"ip": ip_address}, request)
     await db.commit()
@@ -234,31 +226,23 @@ async def list_users(
     page: int = 1,
     page_size: int = 10,
     search: Optional[str] = None,
-    role_code: Optional[str] = None,
     is_active: Optional[bool] = None,
-    current_user: UserResponse = Depends(has_permission("user.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserListResponse:
     """
     Get a paginated, filtered list of users.
-    Protected by RBAC 'user.view' permission.
     """
     items, total, total_pages = await auth_service.get_users_page(
         db,
         page=page,
         page_size=page_size,
         search=search,
-        role_code=role_code,
         is_active=is_active,
     )
     
     list_items = []
     for item in items:
-        roles_mapped = [
-            RoleResponse(id=r.id, name=r.name, code=r.code)
-            for r in item.roles
-        ]
-        
         avatar_url = item.avatar_url
         if item.avatar:
             protocol = "https" if settings.MINIO_SECURE else "http"
@@ -275,7 +259,6 @@ async def list_users(
                 is_active=item.is_active,
                 last_login=item.last_login,
                 created_at=item.created_at,
-                roles=roles_mapped,
             )
         )
         
@@ -292,17 +275,16 @@ async def list_users(
 async def create_user(
     request: Request,
     payload: UserCreate,
-    current_user: UserResponse = Depends(has_permission("user.create")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Tạo một tài khoản thành viên mới trong hệ thống.
-    Quyền yêu cầu: user.create
     """
     user = await auth_service.create_user(db, payload, current_user)
     await log_action(
         db, current_user, "USER_CREATED", "user", user.id,
-        {"username": user.username, "email": user.email, "roles": [r.code for r in user.roles]},
+        {"username": user.username, "email": user.email},
         request,
     )
     await db.commit()
@@ -326,12 +308,11 @@ async def check_username_exists(
 @users_router.get("/{user_id}", response_model=UserDetailResponse)
 async def get_user_detail(
     user_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("user.view")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Lấy thông tin chi tiết một thành viên theo ID.
-    Quyền yêu cầu: user.view
     """
     user = await auth_service.get_user_detail(db, user_id)
     return UserDetailResponse.model_validate(user)
@@ -342,16 +323,13 @@ async def update_user(
     request: Request,
     user_id: uuid.UUID,
     payload: UserUpdate,
-    current_user: UserResponse = Depends(has_permission("user.update")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserDetailResponse:
     """
     Cập nhật thông tin chi tiết hoặc vai trò của thành viên.
-    Quyền yêu cầu: user.update
     """
     changes = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
-    if "role_ids" in changes:
-        changes["role_ids"] = [str(rid) for rid in changes["role_ids"]]
     user = await auth_service.update_user(db, user_id, payload, current_user)
     await log_action(db, current_user, "USER_UPDATED", "user", user_id, changes, request)
     await db.commit()
@@ -362,12 +340,11 @@ async def update_user(
 async def delete_user(
     request: Request,
     user_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("user.delete")),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
     Xóa tài khoản thành viên khỏi hệ thống (soft delete).
-    Quyền yêu cầu: user.delete
     """
     await auth_service.delete_user(db, user_id, current_user)
     await log_action(db, current_user, "USER_DELETED", "user", user_id, None, request)
@@ -381,13 +358,12 @@ async def delete_user(
 @users_router.get("/{user_id}/sessions", response_model=List[UserSessionResponse])
 async def get_user_sessions(
     user_id: uuid.UUID,
-    current_user: UserResponse = Depends(require_superadmin),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> List[UserSessionResponse]:
     """
     Lấy danh sách tất cả phiên đăng nhập (còn hạn) của một tài khoản.
     Bao gồm cả phiên đang hoạt động và đã bị thu hồi.
-    Yêu cầu quyền: user.view
     """
     return await auth_service.get_user_sessions(db, user_id)
 
@@ -398,13 +374,12 @@ async def get_login_history(
     page: int = 1,
     page_size: int = 20,
     status: Optional[str] = None,
-    current_user: UserResponse = Depends(require_superadmin),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> LoginHistoryResponse:
     """
     Lấy lịch sử đăng nhập có phân trang của một tài khoản.
     Có thể lọc theo trạng thái: 'success' hoặc 'failed'.
-    Yêu cầu quyền: user.view
     """
     return await auth_service.get_login_history(
         db, user_id, page=page, page_size=page_size, status=status
@@ -415,12 +390,11 @@ async def get_login_history(
 async def revoke_user_session(
     user_id: uuid.UUID,
     session_id: uuid.UUID,
-    current_user: UserResponse = Depends(require_superadmin),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, bool]:
     """
     Thu hồi (đăng xuất từ xa) một phiên đăng nhập cụ thể của người dùng.
-    Yêu cầu quyền: user.update
     """
     await auth_service.revoke_user_session(db, user_id, session_id)
     return {"success": True}
@@ -429,12 +403,11 @@ async def revoke_user_session(
 @users_router.post("/{user_id}/sessions/revoke-all")
 async def revoke_all_user_sessions(
     user_id: uuid.UUID,
-    current_user: UserResponse = Depends(require_superadmin),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, object]:
     """
     Thu hồi tất cả phiên đăng nhập đang hoạt động của người dùng.
-    Yêu cầu quyền: user.update
     """
     revoked_count = await auth_service.revoke_all_user_sessions(db, user_id)
     return {"success": True, "revoked_count": revoked_count}
@@ -444,12 +417,11 @@ async def revoke_all_user_sessions(
 async def lock_user(
     request: Request,
     user_id: uuid.UUID,
-    current_user: UserResponse = Depends(require_superadmin),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> LockUserResponse:
     """
     Khoá tài khoản người dùng.
-    Yêu cầu quyền: user.lock
     """
     result = await auth_service.lock_user(db, user_id)
     await log_action(db, current_user, "USER_LOCKED", "user", user_id, None, request)
@@ -461,12 +433,11 @@ async def lock_user(
 async def unlock_user(
     request: Request,
     user_id: uuid.UUID,
-    current_user: UserResponse = Depends(require_superadmin),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> LockUserResponse:
     """
     Mở khoá tài khoản người dùng.
-    Yêu cầu quyền: user.unlock
     """
     result = await auth_service.unlock_user(db, user_id)
     await log_action(db, current_user, "USER_UNLOCKED", "user", user_id, None, request)
@@ -477,158 +448,11 @@ async def unlock_user(
 @users_router.get("/{user_id}/anomalies", response_model=AnomalyReportResponse)
 async def get_anomaly_report(
     user_id: uuid.UUID,
-    current_user: UserResponse = Depends(require_superadmin),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AnomalyReportResponse:
     """
     Tạo báo cáo phát hiện hành vi bất thường cho một tài khoản.
     Phân tích: brute-force, IP mới, giờ đăng nhập bất thường, quá nhiều phiên.
-    Yêu cầu quyền: user.view
     """
     return await auth_service.get_anomaly_report(db, user_id)
-
-
-@users_router.get("/{user_id}/access-overview", response_model=UserAccessOverviewResponse)
-async def get_user_access_overview(
-    user_id: uuid.UUID,
-    current_user: UserResponse = Depends(require_superadmin),
-    db: AsyncSession = Depends(get_db),
-) -> UserAccessOverviewResponse:
-    """
-    Trả về tổng quan quyền truy cập của một tài khoản:
-      - Danh sách vai trò (roles)
-      - Toàn bộ mã quyền (permission_codes) được cấp
-      - Các tính năng/mục menu mà tài khoản có thể truy cập,
-        kèm danh sách quyền cụ thể được cấp cho từng tính năng đó
-    Yêu cầu: super_admin
-    """
-    return await auth_service.get_user_access_overview(db, user_id)
-
-
-# ─── Roles and Permissions Routers ───────────────────────────────────────────
-
-roles_router = APIRouter()
-permissions_router = APIRouter()
-
-
-@roles_router.get("", response_model=list[RoleListItemResponse])
-async def list_roles(
-    current_user: UserResponse = Depends(has_permission("role.view")),
-    db: AsyncSession = Depends(get_db),
-) -> list[RoleListItemResponse]:
-    """
-    Lấy danh sách các vai trò (roles) trong hệ thống kèm số lượng quyền hạn.
-    Quyền yêu cầu: role.view
-    """
-    return await auth_service.list_roles(db)
-
-
-@roles_router.get("/{role_id}", response_model=RoleDetailResponse)
-async def get_role_detail(
-    role_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("role.view")),
-    db: AsyncSession = Depends(get_db),
-) -> RoleDetailResponse:
-    """
-    Xem chi tiết thông tin và toàn bộ quyền hạn của một vai trò.
-    Quyền yêu cầu: role.view
-    """
-    return await auth_service.get_role_detail(db, role_id)
-
-
-@roles_router.post("", response_model=RoleDetailResponse)
-async def create_role(
-    request: Request,
-    payload: RoleCreate,
-    current_user: UserResponse = Depends(has_permission("role.create")),
-    db: AsyncSession = Depends(get_db),
-) -> RoleDetailResponse:
-    """
-    Tạo một vai trò mới.
-    Quyền yêu cầu: role.create
-    """
-    role = await auth_service.create_role(db, payload)
-    await log_action(
-        db, current_user, "ROLE_CREATED", "role", role.id,
-        {"name": role.name, "code": role.code}, request,
-    )
-    await db.commit()
-    return RoleDetailResponse(
-        id=role.id,
-        name=role.name,
-        code=role.code,
-        description=role.description,
-        permissions=[],
-    )
-
-
-@roles_router.put("/{role_id}", response_model=RoleDetailResponse)
-async def update_role(
-    request: Request,
-    role_id: uuid.UUID,
-    payload: RoleUpdate,
-    current_user: UserResponse = Depends(has_permission("role.update")),
-    db: AsyncSession = Depends(get_db),
-) -> RoleDetailResponse:
-    """
-    Cập nhật thông tin (tên, mô tả) của một vai trò.
-    Quyền yêu cầu: role.update
-    """
-    await auth_service.update_role(db, role_id, payload)
-    await log_action(
-        db, current_user, "ROLE_UPDATED", "role", role_id,
-        payload.model_dump(exclude_none=True), request,
-    )
-    await db.commit()
-    return await auth_service.get_role_detail(db, role_id)
-
-
-@roles_router.delete("/{role_id}")
-async def delete_role(
-    request: Request,
-    role_id: uuid.UUID,
-    current_user: UserResponse = Depends(has_permission("role.delete")),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """
-    Xóa một vai trò khỏi hệ thống.
-    Quyền yêu cầu: role.delete
-    """
-    await auth_service.delete_role(db, role_id)
-    await log_action(db, current_user, "ROLE_DELETED", "role", role_id, None, request)
-    await db.commit()
-    return {"success": True}
-
-
-@roles_router.post("/{role_id}/permissions")
-async def assign_role_permissions(
-    request: Request,
-    role_id: uuid.UUID,
-    payload: RoleAssignPermissions,
-    current_user: UserResponse = Depends(has_permission("role.assign_permission")),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    """
-    Gán danh sách các quyền hạn cho một vai trò.
-    Quyền yêu cầu: role.assign_permission
-    """
-    await auth_service.assign_role_permissions(db, role_id, payload.permission_ids)
-    await log_action(
-        db, current_user, "ROLE_PERMISSIONS_CHANGED", "role", role_id,
-        {"permission_ids": [str(pid) for pid in payload.permission_ids]}, request,
-    )
-    await db.commit()
-    return {"success": True}
-
-
-@permissions_router.get("", response_model=list[PermissionResponse])
-async def list_all_permissions(
-    current_user: UserResponse = Depends(has_permission("permission.view")),
-    db: AsyncSession = Depends(get_db),
-) -> list[PermissionResponse]:
-    """
-    Lấy danh sách tất cả các quyền hạn (permissions) có sẵn trên hệ thống.
-    Quyền yêu cầu: permission.view
-    """
-    return await auth_service.list_all_permissions(db)
-

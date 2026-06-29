@@ -266,3 +266,9 @@ class CategoryReorderRequest(BaseModel):
     items: list[CategoryReorderItem] = Field(
         ..., min_length=1, description="Danh sách các danh mục cần dịch chuyển"
     )
+
+
+class CategorySlugCheckResponse(BaseModel):
+    """Phản hồi kiểm tra trùng lặp slug."""
+    exists: bool = Field(..., description="Slug có trùng lặp trong hệ thống (kể cả đã xóa mềm) hay không")
+    suggested_slug: str = Field(..., description="Gợi ý slug mới không bị trùng")

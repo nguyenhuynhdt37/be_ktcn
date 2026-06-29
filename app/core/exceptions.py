@@ -125,6 +125,8 @@ async def validation_exception_handler(
         # Parse path key (e.g. body -> username)
         loc = ".".join(str(x) for x in error.get("loc", []))
         details[loc] = error.get("msg")
+    
+    logger.error(f"422 Validation Error: {details} | Payload: {exc.body}")
 
     return JSONResponse(
         status_code=422,

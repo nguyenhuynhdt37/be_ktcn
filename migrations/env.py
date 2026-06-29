@@ -9,12 +9,18 @@ from alembic import context
 from app.core.config import settings
 from app.common.models.base import Base
 
-# Import all models so Alembic autogenerate can detect them
 from app.modules.auth.models import *  # noqa: F401, F403
 from app.modules.media.models import *  # noqa: F401, F403
 from app.modules.menu.models import *  # noqa: F401, F403
 from app.modules.category.models import *  # noqa: F401, F403
 from app.modules.ai.models import *  # noqa: F401, F403
+from app.modules.audit.models import *  # noqa: F401, F403
+from app.modules.article.models import *  # noqa: F401, F403
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name in ["settings"]:
+        return False
+    return True
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -56,6 +62,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -63,7 +70,11 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        include_object=include_object,
+    )
 
     with context.begin_transaction():
         context.run_migrations()

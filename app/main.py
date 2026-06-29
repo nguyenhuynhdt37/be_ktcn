@@ -8,14 +8,22 @@ from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import setup_exception_handlers
 from app.core.logger import setup_logging
-from app.modules.auth.router import router as auth_router, users_router, roles_router, permissions_router
+from app.modules.auth.router import router as auth_router, users_router
 from app.modules.audit.router import audit_router
 from app.modules.health.router import router as health_router
 from app.modules.media.router import media_router
 from app.modules.menu.router import menu_router
 from app.modules.category.router import category_router
-from app.modules.ai.router import ai_router
+from app.modules.article.router import router as article_router
+from app.modules.article.routers.tag_router import router as tag_router
 from app.shared.redis import close_redis, init_redis
+
+# Import all models to ensure they are registered on Base.metadata and prevent NoReferencedTableError
+from app.modules.auth.models import User, RefreshToken, LoginHistory
+from app.modules.media.models import MediaItem
+from app.modules.menu.models import Menu, MenuItem
+from app.modules.category.models import Category
+from app.modules.article.models import Article
 
 # Initialize global logging configuration
 setup_logging()
@@ -32,8 +40,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Startup: Launch daily AI models sync task at 00:00
     import asyncio
-    from app.modules.ai.tasks import start_daily_ai_sync_task
-    asyncio.create_task(start_daily_ai_sync_task())
+    from app.modules.article.tasks import start_article_scheduler_task
+    asyncio.create_task(start_article_scheduler_task())
     
     yield
     # Shutdown: Clean up connections
@@ -79,11 +87,11 @@ app.include_router(health_router)
 # All standard modules are prefixed with /api/v1
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(users_router, prefix=settings.API_V1_STR)
-app.include_router(roles_router, prefix=f"{settings.API_V1_STR}/roles", tags=["roles"])
-app.include_router(permissions_router, prefix=f"{settings.API_V1_STR}/permissions", tags=["permissions"])
+
 app.include_router(media_router, prefix=f"{settings.API_V1_STR}/media", tags=["media"])
 app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/audit-logs", tags=["audit"])
 app.include_router(menu_router, prefix=f"{settings.API_V1_STR}/menus", tags=["menus"])
 app.include_router(category_router, prefix=f"{settings.API_V1_STR}/categories", tags=["categories"])
-app.include_router(ai_router, prefix=f"{settings.API_V1_STR}/ai", tags=["ai"])
-
+app.include_router(tag_router, prefix=f"{settings.API_V1_STR}/articles/tags", tags=["tags"])
+app.include_router(article_router, prefix=f"{settings.API_V1_STR}/articles", tags=["articles"])
+app.include_router(tag_router, prefix=f"{settings.API_V1_STR}/tags", tags=["tags"])

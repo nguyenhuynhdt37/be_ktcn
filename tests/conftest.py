@@ -22,21 +22,13 @@ TestingSessionLocal = async_sessionmaker(
 
 import uuid
 from app.core.security import hash_password
-from app.modules.auth.models import Role, User, UserRole
+from app.modules.auth.models import User
 
 @pytest.fixture(autouse=True)
 async def seed_test_rbac(db_session: AsyncSession):
     """
-    Seeds standard Super Admin role and user in the isolated SQLite memory database.
+    Seeds a test user in the isolated SQLite memory database.
     """
-    role = Role(
-        id=uuid.UUID("d1017cf7-88b3-4f9e-c616-3e4b3c75ad01"),
-        name="Super Administrator",
-        code="super_admin",
-        description="Has full access",
-    )
-    db_session.add(role)
-
     user = User(
         id=uuid.UUID("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
         username="admin",
@@ -47,12 +39,6 @@ async def seed_test_rbac(db_session: AsyncSession):
     )
     db_session.add(user)
     await db_session.flush()
-
-    mapping = UserRole(
-        user_id=user.id,
-        role_id=role.id,
-    )
-    db_session.add(mapping)
     await db_session.commit()
 
 

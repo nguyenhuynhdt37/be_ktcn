@@ -65,7 +65,27 @@ class CategoryService:
             
         query = query.order_by(Category.sort_order, Category.created_at)
         result = await db.execute(query)
-        return list(result.scalars().all())
+        categories = list(result.scalars().all())
+
+        # Tính toán article_count cho mỗi category (chỉ đếm bài viết công khai)
+        from app.modules.article.models import Article, ArticleStatus
+        from sqlalchemy import func
+        counts_query = (
+            select(Article.category_id, func.count(Article.id))
+            .where(
+                Article.deleted_at == None,
+                Article.is_draft == False,
+                Article.status == ArticleStatus.PUBLISHED
+            )
+            .group_by(Article.category_id)
+        )
+        counts_res = await db.execute(counts_query)
+        counts_map = {row[0]: row[1] for row in counts_res.all() if row[0] is not None}
+
+        for cat in categories:
+            cat.article_count = counts_map.get(cat.id, 0)
+
+        return categories
 
     async def get_category_by_id(self, db: AsyncSession, category_id: uuid.UUID) -> Category:
         """Lấy chi tiết danh mục theo ID. Hỗ trợ soft-delete check."""
@@ -82,6 +102,22 @@ class CategoryService:
                 error_code="CATEGORY_NOT_FOUND",
                 details={"category_id": str(category_id)},
             )
+
+        # Tính toán article_count cho category này
+        from app.modules.article.models import Article, ArticleStatus
+        from sqlalchemy import func
+        count_query = (
+            select(func.count(Article.id))
+            .where(
+                Article.category_id == category_id,
+                Article.deleted_at == None,
+                Article.is_draft == False,
+                Article.status == ArticleStatus.PUBLISHED
+            )
+        )
+        count_res = await db.execute(count_query)
+        category.article_count = count_res.scalar() or 0
+
         return category
 
     async def _resolve_unique_slug(self, db: AsyncSession, base_text: str, current_id: Optional[uuid.UUID] = None) -> str:
@@ -237,6 +273,24 @@ class CategoryService:
         )
         result = await db.execute(query)
         items = list(result.scalars().all())
+
+        # Tính toán article_count cho mỗi category
+        from app.modules.article.models import Article, ArticleStatus
+        from sqlalchemy import func
+        counts_query = (
+            select(Article.category_id, func.count(Article.id))
+            .where(
+                Article.deleted_at == None,
+                Article.is_draft == False,
+                Article.status == ArticleStatus.PUBLISHED
+            )
+            .group_by(Article.category_id)
+        )
+        counts_res = await db.execute(counts_query)
+        counts_map = {row[0]: row[1] for row in counts_res.all() if row[0] is not None}
+
+        for item in items:
+            item.article_count = counts_map.get(item.id, 0)
 
         return self._build_tree(items)
 

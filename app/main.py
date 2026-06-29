@@ -15,7 +15,9 @@ from app.modules.media.router import media_router
 from app.modules.menu.router import menu_router
 from app.modules.category.router import category_router
 from app.modules.article.router import router as article_router
-from app.modules.article.routers.tag_router import router as tag_router
+from app.modules.tag.router import router as tag_router
+from app.modules.faculty_staff.router import positions_router, departments_router, staffs_router
+from app.modules.banner.router import banners_router
 from app.shared.redis import close_redis, init_redis
 
 # Import all models to ensure they are registered on Base.metadata and prevent NoReferencedTableError
@@ -24,6 +26,9 @@ from app.modules.media.models import MediaItem
 from app.modules.menu.models import Menu, MenuItem
 from app.modules.category.models import Category
 from app.modules.article.models import Article
+from app.modules.tag.models import Tag
+from app.modules.faculty_staff.models import Department, Position, Staff
+from app.modules.banner.models import Banner
 
 # Initialize global logging configuration
 setup_logging()
@@ -92,6 +97,9 @@ app.include_router(media_router, prefix=f"{settings.API_V1_STR}/media", tags=["m
 app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/audit-logs", tags=["audit"])
 app.include_router(menu_router, prefix=f"{settings.API_V1_STR}/menus", tags=["menus"])
 app.include_router(category_router, prefix=f"{settings.API_V1_STR}/categories", tags=["categories"])
-app.include_router(tag_router, prefix=f"{settings.API_V1_STR}/articles/tags", tags=["tags"])
 app.include_router(article_router, prefix=f"{settings.API_V1_STR}/articles", tags=["articles"])
 app.include_router(tag_router, prefix=f"{settings.API_V1_STR}/tags", tags=["tags"])
+app.include_router(positions_router, prefix=f"{settings.API_V1_STR}/positions", tags=["positions"])
+app.include_router(departments_router, prefix=f"{settings.API_V1_STR}/departments", tags=["departments"])
+app.include_router(staffs_router, prefix=f"{settings.API_V1_STR}/staffs", tags=["staffs"])
+app.include_router(banners_router, prefix=f"{settings.API_V1_STR}/banners", tags=["banners"])

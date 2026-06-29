@@ -23,8 +23,10 @@ class MenuItemTargetType(str, enum.Enum):
     CATEGORY = "CATEGORY"
     ARTICLE = "ARTICLE"
     PAGE = "PAGE"
+    DEPARTMENT = "DEPARTMENT"
     MODULE = "MODULE"
     EXTERNAL_LINK = "EXTERNAL_LINK"
+
 
 
 class Menu(BaseModel):

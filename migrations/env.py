@@ -13,9 +13,12 @@ from app.modules.auth.models import *  # noqa: F401, F403
 from app.modules.media.models import *  # noqa: F401, F403
 from app.modules.menu.models import *  # noqa: F401, F403
 from app.modules.category.models import *  # noqa: F401, F403
-from app.modules.ai.models import *  # noqa: F401, F403
 from app.modules.audit.models import *  # noqa: F401, F403
 from app.modules.article.models import *  # noqa: F401, F403
+from app.modules.tag.models import *  # noqa: F401, F403
+from app.modules.faculty_staff.models import *  # noqa: F401, F403
+from app.modules.banner.models import *  # noqa: F401, F403
+
 
 def include_object(object, name, type_, reflected, compare_to):
     if type_ == "table" and name in ["settings"]:

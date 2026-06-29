@@ -24,6 +24,8 @@ class TargetInfo(BaseModel):
     slug: Optional[str] = None
     status: Optional[str] = None
     path: Optional[str] = None  # breadcrumb path, VD: "Tin tức / Tuyển sinh"
+    is_weekly_schedule: Optional[bool] = None
+
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -181,7 +183,9 @@ async def _resolve_category(db: AsyncSession, target_id: uuid.UUID) -> TargetInf
         slug=category.slug,
         status=category.status,
         path=" / ".join(path_parts),
+        is_weekly_schedule=category.is_weekly_schedule,
     )
+
 
 
 async def _batch_resolve_categories(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
@@ -230,9 +234,211 @@ async def _batch_resolve_categories(db: AsyncSession, target_ids: list[uuid.UUID
             slug=cat.slug,
             status=cat.status,
             path=" / ".join(path_parts),
+            is_weekly_schedule=cat.is_weekly_schedule,
         )
 
+
     return resolved
+
+
+# ──────────────────────────────────────────────
+# Article Resolver Implementation
+# ──────────────────────────────────────────────
+
+
+async def _validate_article(db: AsyncSession, target_id: uuid.UUID) -> None:
+    """Validate Article tồn tại, chưa bị xóa mềm, và đang ở trạng thái PUBLISHED."""
+    from app.modules.article.models import Article, ArticleStatus
+
+    query = select(Article).where(Article.id == target_id)
+    result = await db.execute(query)
+    article = result.scalar_one_or_none()
+
+    if not article:
+        raise NotFoundException(
+            message="Bài viết được liên kết không tồn tại",
+            error_code="TARGET_ARTICLE_NOT_FOUND",
+            details={"target_id": str(target_id)},
+        )
+
+    if article.deleted_at is not None:
+        raise BadRequestException(
+            message="Bài viết được liên kết đã bị xóa",
+            error_code="TARGET_ARTICLE_DELETED",
+            details={"target_id": str(target_id), "title": article.title},
+        )
+
+    status_val = article.status.value if hasattr(article.status, 'value') else article.status
+    if status_val != ArticleStatus.PUBLISHED.value:
+        raise BadRequestException(
+            message=f"Bài viết '{article.title}' đang ở trạng thái '{status_val}'. Chỉ cho phép liên kết với bài viết đã xuất bản (PUBLISHED).",
+            error_code="TARGET_ARTICLE_NOT_PUBLISHED",
+            details={"target_id": str(target_id), "status": status_val},
+        )
+
+
+async def _resolve_article(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
+    """Resolve thông tin chi tiết của một Article."""
+    from app.modules.article.models import Article
+
+    query = select(Article).where(Article.id == target_id, Article.deleted_at == None)
+    result = await db.execute(query)
+    article = result.scalar_one_or_none()
+
+    if not article:
+        return TargetInfo(id=str(target_id), type="ARTICLE", name="[Đã xóa]", status="DELETED")
+
+    status_val = article.status.value if hasattr(article.status, 'value') else article.status
+    return TargetInfo(
+        id=str(article.id),
+        type="ARTICLE",
+        name=article.title,
+        slug=article.slug,
+        status=status_val,
+        path=f"/tin-tuc/{article.slug}",
+    )
+
+
+async def _batch_resolve_articles(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
+    """Batch resolve nhiều articles cùng lúc bằng 1 câu IN query."""
+    from app.modules.article.models import Article
+
+    if not target_ids:
+        return {}
+
+    query = select(Article).where(Article.id.in_(target_ids), Article.deleted_at == None)
+    result = await db.execute(query)
+    articles = {a.id: a for a in result.scalars().all()}
+
+    resolved: dict[uuid.UUID, TargetInfo] = {}
+    for t_id in target_ids:
+        art = articles.get(t_id)
+        if not art:
+            resolved[t_id] = TargetInfo(id=str(t_id), type="ARTICLE", name="[Đã xóa]", status="DELETED")
+            continue
+
+        status_val = art.status.value if hasattr(art.status, 'value') else art.status
+        resolved[t_id] = TargetInfo(
+            id=str(art.id),
+            type="ARTICLE",
+            name=art.title,
+            slug=art.slug,
+            status=status_val,
+            path=f"/tin-tuc/{art.slug}",
+        )
+    return resolved
+
+
+# ──────────────────────────────────────────────
+# Department Resolver Implementation
+# ──────────────────────────────────────────────
+
+
+async def _validate_department(db: AsyncSession, target_id: uuid.UUID) -> None:
+    """Validate Department tồn tại, chưa bị xóa mềm, và đang hoạt động (is_active=True)."""
+    from app.modules.faculty_staff.models import Department
+
+    query = select(Department).where(Department.id == target_id)
+    result = await db.execute(query)
+    dept = result.scalar_one_or_none()
+
+    if not dept:
+        raise NotFoundException(
+            message="Bộ môn được liên kết không tồn tại",
+            error_code="TARGET_DEPARTMENT_NOT_FOUND",
+            details={"target_id": str(target_id)},
+        )
+
+    if dept.deleted_at is not None:
+        raise BadRequestException(
+            message="Bộ môn được liên kết đã bị xóa",
+            error_code="TARGET_DEPARTMENT_DELETED",
+            details={"target_id": str(target_id), "name": dept.name},
+        )
+
+    if not dept.is_active:
+        raise BadRequestException(
+            message=f"Bộ môn '{dept.name}' đang ở trạng thái ngưng hoạt động. Chỉ cho phép liên kết với bộ môn đang hoạt động.",
+            error_code="TARGET_DEPARTMENT_NOT_ACTIVE",
+            details={"target_id": str(target_id)},
+        )
+
+
+async def _resolve_department(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
+    """Resolve thông tin chi tiết của một Department."""
+    from app.modules.faculty_staff.models import Department
+
+    query = select(Department).where(Department.id == target_id, Department.deleted_at == None)
+    result = await db.execute(query)
+    dept = result.scalar_one_or_none()
+
+    if not dept:
+        return TargetInfo(id=str(target_id), type="DEPARTMENT", name="[Đã xóa]", status="DELETED")
+
+    return TargetInfo(
+        id=str(dept.id),
+        type="DEPARTMENT",
+        name=dept.name,
+        slug=dept.slug,
+        status="ACTIVE" if dept.is_active else "INACTIVE",
+        path=f"/bo-mon/{dept.slug}",
+    )
+
+
+async def _batch_resolve_departments(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
+    """Batch resolve nhiều departments cùng lúc bằng 1 câu IN query."""
+    from app.modules.faculty_staff.models import Department
+
+    if not target_ids:
+        return {}
+
+    query = select(Department).where(Department.id.in_(target_ids), Department.deleted_at == None)
+    result = await db.execute(query)
+    departments = {d.id: d for d in result.scalars().all()}
+
+    resolved: dict[uuid.UUID, TargetInfo] = {}
+    for t_id in target_ids:
+        dept = departments.get(t_id)
+        if not dept:
+            resolved[t_id] = TargetInfo(id=str(t_id), type="DEPARTMENT", name="[Đã xóa]", status="DELETED")
+            continue
+
+        resolved[t_id] = TargetInfo(
+            id=str(dept.id),
+            type="DEPARTMENT",
+            name=dept.name,
+            slug=dept.slug,
+            status="ACTIVE" if dept.is_active else "INACTIVE",
+            path=f"/bo-mon/{dept.slug}",
+        )
+    return resolved
+
+
+# ──────────────────────────────────────────────
+# Page Resolver (Mock/Future-proof)
+# ──────────────────────────────────────────────
+
+
+async def _validate_page(db: AsyncSession, target_id: uuid.UUID) -> None:
+    """Validate Page (Mock vì chưa có module Page)."""
+    logger.warning(f"Static pages module is not implemented yet. Skipping validation for page: {target_id}")
+    return
+
+
+async def _resolve_page(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
+    """Resolve Page (Mock)."""
+    return TargetInfo(
+        id=str(target_id),
+        type="PAGE",
+        name=f"[Trang tĩnh {str(target_id)[:8]}]",
+        path=f"/page/{target_id}",
+        status="ACTIVE",
+    )
+
+
+async def _batch_resolve_pages(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
+    """Batch resolve Pages (Mock)."""
+    return {t_id: await _resolve_page(db, t_id) for t_id in target_ids}
 
 
 # ──────────────────────────────────────────────
@@ -248,3 +454,28 @@ target_resolver.register(
     resolver=_resolve_category,
     batch_resolver=_batch_resolve_categories,
 )
+
+# Đăng ký Article resolver
+target_resolver.register(
+    "ARTICLE",
+    validator=_validate_article,
+    resolver=_resolve_article,
+    batch_resolver=_batch_resolve_articles,
+)
+
+# Đăng ký Department resolver
+target_resolver.register(
+    "DEPARTMENT",
+    validator=_validate_department,
+    resolver=_resolve_department,
+    batch_resolver=_batch_resolve_departments,
+)
+
+# Đăng ký Page resolver
+target_resolver.register(
+    "PAGE",
+    validator=_validate_page,
+    resolver=_resolve_page,
+    batch_resolver=_batch_resolve_pages,
+)
+

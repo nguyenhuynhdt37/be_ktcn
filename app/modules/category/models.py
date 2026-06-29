@@ -31,6 +31,8 @@ class Category(BaseModel, SEOMixin):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="DRAFT", nullable=False, index=True)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_weekly_schedule: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     
     # Audit log users
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(

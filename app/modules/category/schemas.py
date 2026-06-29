@@ -66,6 +66,7 @@ def build_seo_resolved_before_validation(data: Any) -> Any:
         "sort_order": getattr(data, "sort_order", 0),
         "status": getattr(data, "status", "DRAFT"),
         "is_visible": getattr(data, "is_visible", True),
+        "is_weekly_schedule": getattr(data, "is_weekly_schedule", False),
         "seo_title": getattr(data, "seo_title", None),
         "seo_description": getattr(data, "seo_description", None),
         "seo_keywords": getattr(data, "seo_keywords", None),
@@ -74,8 +75,10 @@ def build_seo_resolved_before_validation(data: Any) -> Any:
         "seo_og_image_id": getattr(data, "seo_og_image_id", None),
         "created_at": getattr(data, "created_at", None),
         "updated_at": getattr(data, "updated_at", None),
+        "article_count": getattr(data, "article_count", 0),
         "children": [] # Ngăn chặn Pydantic truy cập data.children của SQLAlchemy
     }
+
 
     # Trích xuất URL cho ảnh đại diện và ảnh OG Image từ các relationship đã eager load
     thumbnail_url = None
@@ -126,6 +129,8 @@ class CategoryCreate(BaseModel):
     sort_order: int = Field(default=0, description="Thứ tự sắp xếp (10, 20, 30...)")
     status: str = Field(default="DRAFT", description="Trạng thái vòng đời (DRAFT, ACTIVE, INACTIVE)")
     is_visible: bool = Field(default=True, description="Hiển thị ngoài website")
+    is_weekly_schedule: bool = Field(default=False, description="Đánh dấu danh mục là lịch tuần")
+
     
     # SEO
     seo_title: Optional[str] = Field(default=None, max_length=255, description="SEO Title ghi đè")
@@ -153,6 +158,8 @@ class CategoryUpdate(BaseModel):
     sort_order: Optional[int] = None
     status: Optional[str] = None
     is_visible: Optional[bool] = None
+    is_weekly_schedule: Optional[bool] = None
+
     
     # SEO
     seo_title: Optional[str] = Field(default=None, max_length=255)
@@ -181,6 +188,9 @@ class CategoryResponse(BaseModel):
     sort_order: int
     status: str
     is_visible: bool
+    is_weekly_schedule: bool
+    article_count: int = 0
+
     
     # SEO (Cấu hình gốc trong DB)
     seo_title: Optional[str] = None
@@ -220,6 +230,9 @@ class CategoryTreeNode(BaseModel):
     sort_order: int
     status: str
     is_visible: bool
+    is_weekly_schedule: bool
+    article_count: int = 0
+
     
     # SEO (Cấu hình gốc trong DB)
     seo_title: Optional[str] = None

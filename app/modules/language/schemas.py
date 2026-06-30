@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import Optional
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Optional, Any
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from app.core.config import settings
 
 
 class LanguageCreate(BaseModel):
@@ -18,7 +18,7 @@ class LanguageCreate(BaseModel):
     )
     name: str = Field(..., min_length=1, max_length=100, description="Tên tiếng Anh hoặc tên hiển thị chung của ngôn ngữ")
     native_name: str = Field(..., min_length=1, max_length=100, description="Tên bản địa của ngôn ngữ")
-    flag_icon: Optional[str] = Field(default=None, max_length=255, description="Đường dẫn URL ảnh hoặc class icon quốc kỳ")
+    flag_id: Optional[uuid.UUID] = Field(default=None, description="ID ảnh quốc kỳ trong thư viện Media")
     is_default: bool = Field(default=False, description="Đánh dấu là ngôn ngữ mặc định")
     is_system: bool = Field(default=False, description="Đánh dấu ngôn ngữ hệ thống cốt lõi")
     is_active: bool = Field(default=True, description="Trạng thái hoạt động")
@@ -38,7 +38,7 @@ class LanguageUpdate(BaseModel):
     """
     name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Tên ngôn ngữ")
     native_name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Tên bản địa")
-    flag_icon: Optional[str] = Field(default=None, max_length=255, description="Đường dẫn URL ảnh hoặc class icon quốc kỳ")
+    flag_id: Optional[uuid.UUID] = Field(default=None, description="ID ảnh quốc kỳ trong thư viện Media")
     is_default: Optional[bool] = Field(default=None, description="Đánh dấu là ngôn ngữ mặc định")
     is_active: Optional[bool] = Field(default=None, description="Trạng thái hoạt động")
     sort_order: Optional[int] = Field(default=None, ge=0, description="Thứ tự sắp xếp, phải >= 0")
@@ -52,7 +52,8 @@ class LanguageResponse(BaseModel):
     code: str
     name: str
     native_name: str
-    flag_icon: Optional[str] = None
+    flag_id: Optional[uuid.UUID] = None
+    flag_url: Optional[str] = None
     is_default: bool
     is_system: bool
     is_active: bool
@@ -63,6 +64,43 @@ class LanguageResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_flag_url(cls, data: Any) -> Any:
+        if not data:
+            return data
+        
+        # 1. Nếu data là dict
+        if isinstance(data, dict):
+            flag = data.get("flag")
+            if flag and getattr(flag, "object_key", None):
+                protocol = "https" if settings.MINIO_SECURE else "http"
+                data["flag_url"] = f"{protocol}://{settings.MINIO_ENDPOINT}/{getattr(flag, 'bucket', None) or settings.MINIO_BUCKET}/{getattr(flag, 'object_key', None)}"
+            return data
+        
+        # 2. Nếu data là ORM model
+        db_dict = {
+            "id": getattr(data, "id", None),
+            "code": getattr(data, "code", None),
+            "name": getattr(data, "name", None),
+            "native_name": getattr(data, "native_name", None),
+            "flag_id": getattr(data, "flag_id", None),
+            "is_default": getattr(data, "is_default", False),
+            "is_system": getattr(data, "is_system", False),
+            "is_active": getattr(data, "is_active", True),
+            "sort_order": getattr(data, "sort_order", 0),
+            "created_at": getattr(data, "created_at", None),
+            "updated_at": getattr(data, "updated_at", None),
+            "deleted_at": getattr(data, "deleted_at", None),
+        }
+        flag = getattr(data, "flag", None)
+        if flag and getattr(flag, "object_key", None):
+            protocol = "https" if settings.MINIO_SECURE else "http"
+            db_dict["flag_url"] = f"{protocol}://{settings.MINIO_ENDPOINT}/{getattr(flag, 'bucket', None) or settings.MINIO_BUCKET}/{getattr(flag, 'object_key', None)}"
+        else:
+            db_dict["flag_url"] = None
+        return db_dict
+
 
 class PortalLanguageResponse(BaseModel):
     """
@@ -72,10 +110,42 @@ class PortalLanguageResponse(BaseModel):
     code: str
     name: str
     native_name: str
-    flag_icon: Optional[str] = None
+    flag_id: Optional[uuid.UUID] = None
+    flag_url: Optional[str] = None
     is_default: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_flag_url(cls, data: Any) -> Any:
+        if not data:
+            return data
+        
+        # 1. Nếu data là dict
+        if isinstance(data, dict):
+            flag = data.get("flag")
+            if flag and getattr(flag, "object_key", None):
+                protocol = "https" if settings.MINIO_SECURE else "http"
+                data["flag_url"] = f"{protocol}://{settings.MINIO_ENDPOINT}/{getattr(flag, 'bucket', None) or settings.MINIO_BUCKET}/{getattr(flag, 'object_key', None)}"
+            return data
+        
+        # 2. Nếu data là ORM model
+        db_dict = {
+            "id": getattr(data, "id", None),
+            "code": getattr(data, "code", None),
+            "name": getattr(data, "name", None),
+            "native_name": getattr(data, "native_name", None),
+            "flag_id": getattr(data, "flag_id", None),
+            "is_default": getattr(data, "is_default", False),
+        }
+        flag = getattr(data, "flag", None)
+        if flag and getattr(flag, "object_key", None):
+            protocol = "https" if settings.MINIO_SECURE else "http"
+            db_dict["flag_url"] = f"{protocol}://{settings.MINIO_ENDPOINT}/{getattr(flag, 'bucket', None) or settings.MINIO_BUCKET}/{getattr(flag, 'object_key', None)}"
+        else:
+            db_dict["flag_url"] = None
+        return db_dict
 
 
 class LanguageReorderItem(BaseModel):

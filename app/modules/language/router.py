@@ -92,59 +92,6 @@ async def get_language(
     return LanguageResponse.model_validate(lang)
 
 
-@admin_router.post("", response_model=LanguageResponse, status_code=status.HTTP_201_CREATED)
-async def create_language(
-    request: Request,
-    payload: LanguageCreate,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> LanguageResponse:
-    """
-    Tạo mới một ngôn ngữ trong hệ thống (Admin).
-    """
-    lang = await language_service.create_language(db, payload)
-    
-    # Ghi nhận Audit Log
-    await log_action(
-        db,
-        current_user,
-        "LANGUAGE_CREATED",
-        "language",
-        lang.id,
-        {"code": lang.code, "name": lang.name, "is_default": lang.is_default},
-        request,
-    )
-    await db.commit()
-    return LanguageResponse.model_validate(lang)
-
-
-@admin_router.put("/{id}", response_model=LanguageResponse)
-async def update_language(
-    request: Request,
-    id: uuid.UUID,
-    payload: LanguageUpdate,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> LanguageResponse:
-    """
-    Cập nhật thông tin ngôn ngữ (Admin).
-    """
-    lang = await language_service.update_language(db, id, payload)
-    
-    # Ghi nhận Audit Log
-    await log_action(
-        db,
-        current_user,
-        "LANGUAGE_UPDATED",
-        "language",
-        lang.id,
-        {"code": lang.code, "name": lang.name, "is_default": lang.is_default, "is_active": lang.is_active},
-        request,
-    )
-    await db.commit()
-    return LanguageResponse.model_validate(lang)
-
-
 @admin_router.patch("/{id}/enable", response_model=LanguageResponse)
 async def enable_language(
     request: Request,
@@ -217,57 +164,6 @@ async def set_default_language(
         "language",
         lang.id,
         {"code": lang.code, "is_default": True},
-        request,
-    )
-    await db.commit()
-    return LanguageResponse.model_validate(lang)
-
-
-@admin_router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_language(
-    request: Request,
-    id: uuid.UUID,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    """
-    Xóa mềm một ngôn ngữ. Không thể xóa ngôn ngữ mặc định (Admin).
-    """
-    lang = await language_service.delete_language(db, id)
-    
-    # Ghi nhận Audit Log
-    await log_action(
-        db,
-        current_user,
-        "LANGUAGE_DELETED",
-        "language",
-        id,
-        {"code": lang.code, "name": lang.name},
-        request,
-    )
-    await db.commit()
-
-
-@admin_router.patch("/{id}/restore", response_model=LanguageResponse)
-async def restore_language(
-    request: Request,
-    id: uuid.UUID,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> LanguageResponse:
-    """
-    Khôi phục một ngôn ngữ đã bị xóa mềm trước đó (Admin).
-    """
-    lang = await language_service.restore_language(db, id)
-    
-    # Ghi nhận Audit Log
-    await log_action(
-        db,
-        current_user,
-        "LANGUAGE_RESTORED",
-        "language",
-        lang.id,
-        {"code": lang.code, "name": lang.name},
         request,
     )
     await db.commit()

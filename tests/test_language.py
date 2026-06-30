@@ -38,53 +38,6 @@ async def cleanup_test_languages(db_session):
 # ──────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_create_and_get_language(db_session):
-    """Test tạo mới và lấy thông tin ngôn ngữ."""
-    payload = LanguageCreate(
-        code="tsone",
-        name="Test Language 1",
-        native_name="Ngôn ngữ test 1",
-        flag_icon="/flags/tsone.svg",
-        is_default=False,
-        is_active=True,
-        sort_order=5
-    )
-    lang = await language_service.create_language(db_session, payload)
-    await db_session.commit()
-
-    assert lang.id is not None
-    assert lang.code == "tsone"
-    assert lang.name == "Test Language 1"
-    assert lang.flag_icon == "/flags/tsone.svg"
-    assert lang.is_default is False
-
-    # Thử lấy lại theo ID
-    fetched = await language_service.get_language_by_id(db_session, lang.id)
-    assert fetched.id == lang.id
-
-    # Thử lấy theo Code
-    fetched_by_code = await language_repository.get_by_code(db_session, "tsone")
-    assert fetched_by_code is not None
-    assert fetched_by_code.id == lang.id
-
-
-@pytest.mark.asyncio
-async def test_duplicate_code_raises_conflict(db_session):
-    """Test tạo trùng code sẽ ném ngoại lệ ConflictException."""
-    payload = LanguageCreate(
-        code="tsdup",
-        name="Test Dup",
-        native_name="Dup",
-        is_default=False
-    )
-    await language_service.create_language(db_session, payload)
-    await db_session.commit()
-
-    with pytest.raises(ConflictException):
-        await language_service.create_language(db_session, payload)
-
-
-@pytest.mark.asyncio
 async def test_only_one_default_language(db_session):
     """Test quy tắc chỉ có duy nhất một default language (khi set default mới, default cũ tự tắt)."""
     # Lấy default hiện tại (thường là vi)
@@ -92,43 +45,25 @@ async def test_only_one_default_language(db_session):
     assert old_default is not None
     assert old_default.is_default is True
 
-    # Tạo ngôn ngữ test mới làm default
-    payload = LanguageCreate(
-        code="tsdef",
-        name="Test Default",
-        native_name="Default",
-        is_default=True
-    )
-    new_default = await language_service.create_language(db_session, payload)
-    await db_session.commit()
-
-    assert new_default.is_default is True
-
-    # Refresh old default từ DB để kiểm tra xem đã bị chuyển sang False chưa
-    await db_session.refresh(old_default)
-    assert old_default.is_default is False
-
-
-@pytest.mark.asyncio
-async def test_cannot_delete_default_language(db_session):
-    """Test không cho phép xóa ngôn ngữ mặc định."""
-    default_lang = await language_repository.get_default(db_session)
-    assert default_lang is not None
-
-    with pytest.raises(BadRequestException, match="Không thể xóa ngôn ngữ mặc định"):
-        await language_service.delete_language(db_session, default_lang.id)
-
-
-@pytest.mark.asyncio
-async def test_cannot_delete_system_language(db_session):
-    """Test không cho phép xóa ngôn ngữ hệ thống (is_system = True)."""
-    # Lấy ngôn ngữ 'en' (là system language nhưng không phải default)
+    # Lấy ngôn ngữ 'en' để set default
     en_lang = await language_repository.get_by_code(db_session, "en")
     assert en_lang is not None
-    assert en_lang.is_system is True
+    assert en_lang.is_default is False
 
-    with pytest.raises(BadRequestException, match="Không thể xóa ngôn ngữ hệ thống"):
-        await language_service.delete_language(db_session, en_lang.id)
+    # Set default cho en
+    await language_service.set_default_language(db_session, en_lang.id)
+    await db_session.commit()
+
+    # Refresh để kiểm tra
+    await db_session.refresh(old_default)
+    await db_session.refresh(en_lang)
+    
+    assert en_lang.is_default is True
+    assert old_default.is_default is False
+
+    # Reset lại vi làm mặc định để không ảnh hưởng test case khác
+    await language_service.set_default_language(db_session, old_default.id)
+    await db_session.commit()
 
 
 @pytest.mark.asyncio
@@ -139,37 +74,6 @@ async def test_cannot_disable_default_language(db_session):
 
     with pytest.raises(BadRequestException, match="Không thể vô hiệu hóa ngôn ngữ mặc định"):
         await language_service.disable_language(db_session, default_lang.id)
-
-
-@pytest.mark.asyncio
-async def test_soft_delete_and_restore(db_session):
-    """Test quy trình xóa mềm và khôi phục ngôn ngữ."""
-    payload = LanguageCreate(
-        code="tsdel",
-        name="Test Delete",
-        native_name="Delete",
-        is_default=False
-    )
-    lang = await language_service.create_language(db_session, payload)
-    await db_session.commit()
-
-    # Xóa mềm
-    await language_service.delete_language(db_session, lang.id)
-    await db_session.commit()
-
-    # Thử lấy lại bằng get_language_by_id -> sẽ báo NotFoundException
-    with pytest.raises(NotFoundException):
-        await language_service.get_language_by_id(db_session, lang.id)
-
-    # Khôi phục
-    restored = await language_service.restore_language(db_session, lang.id)
-    await db_session.commit()
-
-    assert restored.deleted_at is None
-    
-    # Lấy lại thành công
-    fetched = await language_service.get_language_by_id(db_session, lang.id)
-    assert fetched.id == lang.id
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -190,6 +94,8 @@ async def test_portal_languages_api(client: AsyncClient):
     assert "code" in first_item
     assert "name" in first_item
     assert "native_name" in first_item
+    assert "flag_id" in first_item
+    assert "flag_url" in first_item
     assert "is_default" in first_item
     
     # Không được trả dữ liệu quản trị
@@ -200,132 +106,39 @@ async def test_portal_languages_api(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_admin_crud_flow_api(client: AsyncClient, admin_headers: dict):
-    """Test toàn bộ luồng CRUD thông qua Admin API endpoints."""
-    # 1. POST - Tạo mới ngôn ngữ
-    post_payload = {
-        "code": "tsapi",
-        "name": "Test API Lang",
-        "native_name": "API Lang Native",
-        "is_default": False,
-        "sort_order": 10,
-        "is_active": True
-    }
-    create_res = await client.post("/api/v1/languages", json=post_payload, headers=admin_headers)
-    assert create_res.status_code == 201
-    lang_data = create_res.json()
-    lang_id = lang_data["id"]
-    assert lang_data["code"] == "tsapi"
-
-    # 2. GET - Lấy danh sách ngôn ngữ
+async def test_admin_language_api_flow(client: AsyncClient, admin_headers: dict):
+    """Test luồng API Admin khả dụng (List, Get, Enable, Disable, Set Default)."""
+    # 1. GET - Lấy danh sách ngôn ngữ
     list_res = await client.get("/api/v1/languages", headers=admin_headers)
     assert list_res.status_code == 200
-    assert any(item["id"] == lang_id for item in list_res.json())
-
-    # 3. GET - Chi tiết
-    detail_res = await client.get(f"/api/v1/languages/{lang_id}", headers=admin_headers)
+    languages = list_res.json()
+    assert len(languages) == 3  # Luôn có 3 ngôn ngữ hệ thống vi, en, lo
+    
+    vi_lang = next(item for item in languages if item["code"] == "vi")
+    en_lang = next(item for item in languages if item["code"] == "en")
+    
+    # 2. GET - Chi tiết
+    detail_res = await client.get(f"/api/v1/languages/{en_lang['id']}", headers=admin_headers)
     assert detail_res.status_code == 200
-    assert detail_res.json()["name"] == "Test API Lang"
+    assert detail_res.json()["code"] == "en"
 
-    # 4. PUT - Cập nhật
-    update_payload = {
-        "name": "Updated API Lang",
-        "sort_order": 20
-    }
-    update_res = await client.put(f"/api/v1/languages/{lang_id}", json=update_payload, headers=admin_headers)
-    assert update_res.status_code == 200
-    assert update_res.json()["name"] == "Updated API Lang"
-    assert update_res.json()["sort_order"] == 20
-
-    # 5. PATCH - Disable
-    disable_res = await client.patch(f"/api/v1/languages/{lang_id}/disable", headers=admin_headers)
+    # 3. PATCH - Disable en
+    disable_res = await client.patch(f"/api/v1/languages/{en_lang['id']}/disable", headers=admin_headers)
     assert disable_res.status_code == 200
     assert disable_res.json()["is_active"] is False
 
-    # 6. PATCH - Enable
-    enable_res = await client.patch(f"/api/v1/languages/{lang_id}/enable", headers=admin_headers)
+    # 4. PATCH - Enable en
+    enable_res = await client.patch(f"/api/v1/languages/{en_lang['id']}/enable", headers=admin_headers)
     assert enable_res.status_code == 200
     assert enable_res.json()["is_active"] is True
 
-    # 7. PATCH - Set Default
-    set_default_res = await client.patch(f"/api/v1/languages/{lang_id}/set-default", headers=admin_headers)
+    # 5. PATCH - Set Default en
+    set_default_res = await client.patch(f"/api/v1/languages/{en_lang['id']}/set-default", headers=admin_headers)
     assert set_default_res.status_code == 200
     assert set_default_res.json()["is_default"] is True
 
-    # 8. DELETE - Xóa mềm
-    # Trước tiên phải set default cho vi lại để được phép xóa tsapi
-    # Lấy vi ID
-    vi_lang_res = await client.get("/api/v1/languages", headers=admin_headers)
-    vi_lang_id = next(item["id"] for item in vi_lang_res.json() if item["code"] == "vi")
-    await client.patch(f"/api/v1/languages/{vi_lang_id}/set-default", headers=admin_headers)
-
-    # Tiến hành xóa mềm tsapi
-    delete_res = await client.delete(f"/api/v1/languages/{lang_id}", headers=admin_headers)
-    assert delete_res.status_code == 204
-
-    # 9. GET chi tiết -> 404
-    get_deleted_res = await client.get(f"/api/v1/languages/{lang_id}", headers=admin_headers)
-    assert get_deleted_res.status_code == 404
-
-    # 10. PATCH - Restore
-    restore_res = await client.patch(f"/api/v1/languages/{lang_id}/restore", headers=admin_headers)
-    assert restore_res.status_code == 200
-    assert restore_res.json()["deleted_at"] is None
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# VALIDATION TESTS
-# ──────────────────────────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("invalid_code", [
-    "TS",        # Chứa chữ hoa
-    "ts_1",      # Chứa dấu gạch dưới
-    "ts-1",      # Chứa dấu gạch ngang
-    "ts100000000", # Quá 10 ký tự (11 ký tự)
-])
-@pytest.mark.asyncio
-async def test_invalid_code_validation_api(client: AsyncClient, admin_headers: dict, invalid_code: str):
-    """Test validation không cho phép code sai định dạng."""
-    payload = {
-        "code": invalid_code,
-        "name": "Invalid Lang",
-        "native_name": "Invalid",
-        "is_default": False
-    }
-    res = await client.post("/api/v1/languages", json=payload, headers=admin_headers)
-    assert res.status_code == 422
-    details = res.json()["error"]["details"]
-    assert any("code" in k for k in details.keys())
-
-
-@pytest.mark.asyncio
-async def test_invalid_sort_order_validation_api(client: AsyncClient, admin_headers: dict):
-    """Test validation không cho phép sort_order âm."""
-    payload = {
-        "code": "tsval",
-        "name": "Invalid Order",
-        "native_name": "Invalid",
-        "is_default": False,
-        "sort_order": -1
-    }
-    res = await client.post("/api/v1/languages", json=payload, headers=admin_headers)
-    assert res.status_code == 422
-    details = res.json()["error"]["details"]
-    assert any("sort_order" in k for k in details.keys())
-
-
-@pytest.mark.asyncio
-async def test_admin_delete_system_language_api(client: AsyncClient, admin_headers: dict):
-    """Test API ngăn chặn xóa ngôn ngữ hệ thống."""
-    # Lấy ID của en
-    list_res = await client.get("/api/v1/languages", headers=admin_headers)
-    assert list_res.status_code == 200
-    en_lang_id = next(item["id"] for item in list_res.json() if item["code"] == "en")
-    
-    # Gửi yêu cầu DELETE -> 400 Bad Request
-    del_res = await client.delete(f"/api/v1/languages/{en_lang_id}", headers=admin_headers)
-    assert del_res.status_code == 400
-    assert del_res.json()["error"]["message"] == "Không thể xóa ngôn ngữ hệ thống"
+    # Trả lại default cho vi
+    await client.patch(f"/api/v1/languages/{vi_lang['id']}/set-default", headers=admin_headers)
 
 
 @pytest.mark.asyncio

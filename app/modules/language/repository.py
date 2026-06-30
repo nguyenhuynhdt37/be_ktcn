@@ -3,6 +3,7 @@ from datetime import datetime, UTC
 from typing import Optional
 
 from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.repositories.base import BaseRepository
@@ -22,7 +23,7 @@ class LanguageRepository(BaseRepository[Language, LanguageCreate, LanguageUpdate
         """
         Lấy toàn bộ ngôn ngữ, sắp xếp theo sort_order.
         """
-        query = select(self.model)
+        query = select(self.model).options(selectinload(self.model.flag))
         if not show_deleted:
             query = query.where(self.model.deleted_at.is_(None))
         query = query.order_by(self.model.sort_order.asc(), self.model.created_at.asc())
@@ -35,6 +36,7 @@ class LanguageRepository(BaseRepository[Language, LanguageCreate, LanguageUpdate
         """
         query = (
             select(self.model)
+            .options(selectinload(self.model.flag))
             .where(
                 self.model.is_active == True,
                 self.model.deleted_at.is_(None)
@@ -50,6 +52,7 @@ class LanguageRepository(BaseRepository[Language, LanguageCreate, LanguageUpdate
         """
         query = (
             select(self.model)
+            .options(selectinload(self.model.flag))
             .where(
                 self.model.is_default == True,
                 self.model.deleted_at.is_(None)
@@ -64,6 +67,7 @@ class LanguageRepository(BaseRepository[Language, LanguageCreate, LanguageUpdate
         """
         query = (
             select(self.model)
+            .options(selectinload(self.model.flag))
             .where(
                 self.model.id == id,
                 self.model.deleted_at.is_(None)
@@ -78,6 +82,7 @@ class LanguageRepository(BaseRepository[Language, LanguageCreate, LanguageUpdate
         """
         query = (
             select(self.model)
+            .options(selectinload(self.model.flag))
             .where(
                 self.model.code == code.strip().lower(),
                 self.model.deleted_at.is_(None)
@@ -114,7 +119,7 @@ class LanguageRepository(BaseRepository[Language, LanguageCreate, LanguageUpdate
         Khôi phục ngôn ngữ đã bị xóa mềm.
         """
         # Cần lấy cả bản ghi bị xóa mềm
-        query = select(self.model).where(self.model.id == id)
+        query = select(self.model).options(selectinload(self.model.flag)).where(self.model.id == id)
         result = await db.execute(query)
         db_obj = result.scalar_one_or_none()
         if db_obj and db_obj.deleted_at is not None:

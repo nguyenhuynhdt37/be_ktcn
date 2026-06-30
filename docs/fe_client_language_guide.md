@@ -19,7 +19,8 @@ Tài liệu này hướng dẫn lập trình viên Frontend Portal (FE Client) c
       "code": "vi",
       "name": "Vietnamese",
       "native_name": "Tiếng Việt",
-      "flag_icon": "/flags/vi.svg",
+      "flag_id": null,
+      "flag_url": null,
       "is_default": true
     },
     {
@@ -27,15 +28,8 @@ Tài liệu này hướng dẫn lập trình viên Frontend Portal (FE Client) c
       "code": "en",
       "name": "English",
       "native_name": "English",
-      "flag_icon": "/flags/en.svg",
-      "is_default": false
-    },
-    {
-      "id": "9a0368b4-3dc9-451a-8eff-0f7fb6d9610b",
-      "code": "lo",
-      "name": "Lao",
-      "native_name": "ພາສາລາວ",
-      "flag_icon": "/flags/lo.svg",
+      "flag_id": "46976a6f-3adb-4db1-a583-ff0af87f8baf",
+      "flag_url": "http://localhost:9000/cms/flags/en.svg",
       "is_default": false
     }
   ]
@@ -56,7 +50,7 @@ Khi người dùng truy cập trang Portal, FE cần xác định ngôn ngữ hi
 ### 2. Xây dựng Bộ chuyển đổi Ngôn ngữ (Language Switcher)
 - Gọi API `GET /api/v1/portal/languages` khi khởi tạo ứng dụng để render danh sách lựa chọn trên Menu Header.
 - **UI Render**:
-  - Hiển thị ảnh quốc kỳ lấy từ `flag_icon` cạnh tên bản địa (`native_name`) để tối ưu trải nghiệm người dùng (ví dụ: 🇻🇳 Tiếng Việt, 🇬🇧 English).
+  - Hiển thị ảnh quốc kỳ lấy từ `flag_url` cạnh tên bản địa (`native_name`) để tối ưu trải nghiệm người dùng (ví dụ: `flag_url` render trong thẻ `<img>`). Nếu `flag_url` là null, FE có thể render ảnh cờ placeholder mặc định.
 - **Hành động chuyển đổi**:
   - Khi người dùng chọn một ngôn ngữ mới:
     1. Cập nhật cookie/localStorage (ví dụ: `document.cookie = "locale=en; path=/; max-age=31536000"`).

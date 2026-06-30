@@ -67,6 +67,8 @@ def build_seo_resolved_before_validation(data: Any) -> Any:
         "status": getattr(data, "status", "DRAFT"),
         "is_visible": getattr(data, "is_visible", True),
         "is_weekly_schedule": getattr(data, "is_weekly_schedule", False),
+        "is_locked": getattr(data, "is_locked", False),
+
         "seo_title": getattr(data, "seo_title", None),
         "seo_description": getattr(data, "seo_description", None),
         "seo_keywords": getattr(data, "seo_keywords", None),
@@ -130,6 +132,8 @@ class CategoryCreate(BaseModel):
     status: str = Field(default="DRAFT", description="Trạng thái vòng đời (DRAFT, ACTIVE, INACTIVE)")
     is_visible: bool = Field(default=True, description="Hiển thị ngoài website")
     is_weekly_schedule: bool = Field(default=False, description="Đánh dấu danh mục là lịch tuần")
+    is_locked: bool = Field(default=False, description="Đánh dấu danh mục hệ thống không được xóa")
+
 
     
     # SEO
@@ -159,6 +163,8 @@ class CategoryUpdate(BaseModel):
     status: Optional[str] = None
     is_visible: Optional[bool] = None
     is_weekly_schedule: Optional[bool] = None
+    is_locked: Optional[bool] = None
+
 
     
     # SEO
@@ -189,6 +195,8 @@ class CategoryResponse(BaseModel):
     status: str
     is_visible: bool
     is_weekly_schedule: bool
+    is_locked: bool
+
     article_count: int = 0
 
     
@@ -231,6 +239,8 @@ class CategoryTreeNode(BaseModel):
     status: str
     is_visible: bool
     is_weekly_schedule: bool
+    is_locked: bool
+
     article_count: int = 0
 
     

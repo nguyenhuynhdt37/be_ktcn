@@ -352,3 +352,206 @@ class ArticleUpdateRequest(BaseModel):
         return v
 
 
+class PortalArticleResponse(ArticleListResponse):
+    """
+    Thông tin bài viết phục vụ cho Portal FE Client, bao gồm đầy đủ dữ liệu SEO & OpenGraph.
+    """
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
+    canonical_url: Optional[str] = None
+    robots: Optional[str] = None
+    og_title: Optional[str] = None
+    og_description: Optional[str] = None
+    og_image: Optional[str] = None
+    og_image_url: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_og_image_url(cls, data: Any) -> Any:
+        from app.core.config import settings
+        protocol = "https" if settings.MINIO_SECURE else "http"
+        
+        # 1. Trường hợp data là đối tượng SQLAlchemy Article
+        if hasattr(data, "og_image") and data.og_image:
+            v = data.og_image
+            if v.startswith("http://") or v.startswith("https://"):
+                data.og_image_url = v
+            else:
+                data.og_image_url = f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{v}"
+        
+        # 2. Trường hợp data là dict (ví dụ FE gửi/test)
+        elif isinstance(data, dict):
+            v = data.get("og_image")
+            if v:
+                if v.startswith("http://") or v.startswith("https://"):
+                    data["og_image_url"] = v
+                else:
+                    data["og_image_url"] = f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{v}"
+        return data
+
+
+class PortalArticlePaginationResponse(BaseModel):
+    """
+    Response bọc kết quả phân trang danh sách bài viết dành cho Portal.
+    """
+    items: list[PortalArticleResponse]
+    page: int = Field(..., description="Trang hiện tại (1-based)")
+    page_size: int = Field(..., description="Số lượng bài viết trên mỗi trang")
+    total_items: int = Field(..., description="Tổng số bài viết thỏa mãn bộ lọc")
+    total_pages: int = Field(..., description="Tổng số trang kết quả")
+    has_next: bool = Field(..., description="Có trang kế tiếp hay không")
+    has_previous: bool = Field(..., description="Có trang trước đó hay không")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PortalArticleDetailResponse(PortalArticleResponse):
+    """
+    Thông tin chi tiết bài viết phục vụ cho Portal FE Client.
+    Bao gồm nội dung chi tiết, thống kê số từ/thời gian đọc và dữ liệu JSON-LD Schema.org NewsArticle tối ưu SEO.
+    """
+    content: str
+    word_count: int
+    reading_time: int
+    thumbnail_url: Optional[str] = None
+    cover_url: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    json_ld: dict = Field(default={}, description="Dữ liệu cấu trúc Schema.org dạng JSON-LD cho công cụ tìm kiếm")
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_seo_and_json_ld(cls, data: Any) -> Any:
+        from app.core.config import settings
+        import re
+        protocol = "https" if settings.MINIO_SECURE else "http"
+        minio_endpoint = settings.MINIO_ENDPOINT
+        minio_bucket = settings.MINIO_BUCKET
+
+        def get_val(obj, key, default=None):
+            if hasattr(obj, key):
+                return getattr(obj, key)
+            elif isinstance(obj, dict):
+                return obj.get(key, default)
+            return default
+
+        title = get_val(data, "title")
+        slug = get_val(data, "slug")
+        excerpt = get_val(data, "excerpt")
+        content = get_val(data, "content", "")
+        
+        # Resolve URLs tuyệt đối cho ảnh
+        thumb_key = get_val(data, "thumbnail_object_key")
+        cover_key = get_val(data, "cover_object_key")
+        og_img_key = get_val(data, "og_image")
+
+        thumb_url = None
+        if thumb_key:
+            thumb_url = thumb_key if (thumb_key.startswith("http://") or thumb_key.startswith("https://")) else f"{protocol}://{minio_endpoint}/{minio_bucket}/{thumb_key}"
+        
+        cover_url = None
+        if cover_key:
+            cover_url = cover_key if (cover_key.startswith("http://") or cover_key.startswith("https://")) else f"{protocol}://{minio_endpoint}/{minio_bucket}/{cover_key}"
+
+        og_image_url = None
+        if og_img_key:
+            og_image_url = og_img_key if (og_img_key.startswith("http://") or og_img_key.startswith("https://")) else f"{protocol}://{minio_endpoint}/{minio_bucket}/{og_img_key}"
+        elif thumb_url:
+            og_image_url = thumb_url
+        elif cover_url:
+            og_image_url = cover_url
+
+        # Gán ngược lại cho data
+        if hasattr(data, "thumbnail_url"):
+            data.thumbnail_url = thumb_url
+            data.cover_url = cover_url
+            data.og_image_url = og_image_url
+        elif isinstance(data, dict):
+            data["thumbnail_url"] = thumb_url
+            data["cover_url"] = cover_url
+            data["og_image_url"] = og_image_url
+
+        # Xử lý fallbacks cho SEO
+        seo_title = get_val(data, "seo_title") or title
+        
+        # Loại bỏ các thẻ HTML để lấy văn bản thuần cho meta description
+        clean_text = re.sub(r'<[^>]+>', ' ', content)
+        clean_text = " ".join(clean_text.split())
+        fallback_desc = excerpt or (clean_text[:160] + "..." if len(clean_text) > 160 else clean_text)
+        
+        seo_desc = get_val(data, "seo_description") or fallback_desc
+        robots = get_val(data, "robots") or "index, follow"
+        
+        canonical_url = get_val(data, "canonical_url")
+        if not canonical_url and slug:
+            fe_url = "http://localhost:3000"
+            canonical_url = f"{fe_url}/articles/{slug}"
+
+        og_title = get_val(data, "og_title") or seo_title
+        og_desc = get_val(data, "og_description") or seo_desc
+
+        if hasattr(data, "seo_title"):
+            data.seo_title = seo_title
+            data.seo_description = seo_desc
+            data.robots = robots
+            data.canonical_url = canonical_url
+            data.og_title = og_title
+            data.og_description = og_desc
+        elif isinstance(data, dict):
+            data["seo_title"] = seo_title
+            data["seo_description"] = seo_desc
+            data["robots"] = robots
+            data["canonical_url"] = canonical_url
+            data["og_title"] = og_title
+            data["og_description"] = og_desc
+
+        # Sinh JSON-LD Structured Data (Schema.org NewsArticle)
+        publish_at = get_val(data, "publish_at") or get_val(data, "created_at")
+        updated_at = get_val(data, "updated_at") or get_val(data, "created_at")
+        
+        author_name = "Viện Kỹ thuật và Công nghệ"
+        author_obj = get_val(data, "author")
+        if author_obj:
+            if hasattr(author_obj, "full_name"):
+                author_name = author_obj.full_name
+            elif isinstance(author_obj, dict):
+                author_name = author_obj.get("full_name", author_name)
+
+        pub_iso = publish_at.isoformat() if hasattr(publish_at, "isoformat") else str(publish_at)
+        upd_iso = updated_at.isoformat() if hasattr(updated_at, "isoformat") else str(updated_at)
+
+        json_ld_data = {
+            "@context": "https://schema.org",
+            "@type": "NewsArticle",
+            "headline": title,
+            "image": [img for img in [og_image_url, thumb_url, cover_url] if img],
+            "datePublished": pub_iso,
+            "dateModified": upd_iso,
+            "author": {
+                "@type": "Person",
+                "name": author_name
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": "Viện Kỹ thuật và Công nghệ - Đại học Vinh",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://viengktc.example.com/logo.png"
+                }
+            },
+            "description": seo_desc
+        }
+
+        if hasattr(data, "json_ld"):
+            data.json_ld = json_ld_data
+        elif isinstance(data, dict):
+            data["json_ld"] = json_ld_data
+
+        return data
+
+
+
+

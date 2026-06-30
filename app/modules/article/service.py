@@ -1054,5 +1054,167 @@ class ArticleService:
 
         return article
 
+    async def list_articles_portal(
+        self,
+        db: AsyncSession,
+        *,
+        category_slug: str,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> Tuple[list[Article], int]:
+        """
+        Query danh sách bài viết công khai thuộc một danh mục cụ thể cho Portal FE Client.
+        Truy vấn tối ưu hóa, hỗ trợ phân trang và nạp sẵn (avoid N+1) đầy đủ SEO metadata.
+        """
+        # 1. Tìm Category theo slug
+        cat_stmt = select(Category).where(Category.slug == category_slug, Category.deleted_at == None)
+        cat_res = await db.execute(cat_stmt)
+        category = cat_res.scalars().first()
+        if not category:
+            raise NotFoundException(message=f"Không tìm thấy danh mục '{category_slug}'.")
+
+        # 2. Xây dựng Query lấy danh sách bài viết
+        # Điều kiện: thuộc category, đã PUBLISHED, không bị xóa mềm, và publish_at <= hiện tại
+        now = datetime.now(timezone.utc)
+        
+        stmt = (
+            select(Article)
+            .where(
+                Article.category_id == category.id,
+                Article.status == ArticleStatus.PUBLISHED,
+                Article.deleted_at == None,
+                Article.publish_at <= now
+            )
+        )
+        
+        # Query count
+        count_stmt = (
+            select(func.count(Article.id))
+            .where(
+                Article.category_id == category.id,
+                Article.status == ArticleStatus.PUBLISHED,
+                Article.deleted_at == None,
+                Article.publish_at <= now
+            )
+        )
+        count_res = await db.execute(count_stmt)
+        total = count_res.scalar() or 0
+
+        # 3. Nạp trước các quan hệ (Eager Loading) & Chỉ lấy các cột cần thiết (load_only)
+        stmt = stmt.options(
+            joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+            joinedload(Article.author).joinedload(User.avatar),
+            joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
+            selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color),
+            load_only(
+                Article.id,
+                Article.title,
+                Article.slug,
+                Article.excerpt,
+                Article.thumbnail_object_key,
+                Article.status,
+                Article.is_featured,
+                Article.is_pinned,
+                Article.is_draft,
+                Article.view_count,
+                Article.created_at,
+                Article.publish_at,
+                Article.published_at,
+                # SEO & OpenGraph fields
+                Article.seo_title,
+                Article.seo_description,
+                Article.canonical_url,
+                Article.robots,
+                Article.og_title,
+                Article.og_description,
+                Article.og_image,
+            )
+        )
+
+        # 4. Sắp xếp: Ghim lên đầu (is_pinned DESC), sau đó đến ngày công bố mới nhất (publish_at DESC)
+        stmt = stmt.order_by(Article.is_pinned.desc(), Article.publish_at.desc())
+
+        # 5. Phân trang
+        skip = (page - 1) * page_size
+        stmt = stmt.offset(skip).limit(page_size)
+
+        # 6. Thực thi
+        result = await db.execute(stmt)
+        items = list(result.scalars().all())
+
+        return items, total
+
+    async def get_article_by_slug_portal(
+        self,
+        db: AsyncSession,
+        slug: str,
+    ) -> Article:
+        """
+        Lấy chi tiết một bài viết công khai theo slug cho Portal FE Client.
+        Tự động tăng view_count của bài viết lên 1.
+        Truy vấn tối ưu, nạp trước (avoid N+1) đầy đủ quan hệ và SEO metadata.
+        """
+        now = datetime.now(timezone.utc)
+
+        # 1. Câu query lấy chi tiết bài viết (Eager loading tối ưu)
+        stmt = (
+            select(Article)
+            .where(
+                Article.slug == slug,
+                Article.status == ArticleStatus.PUBLISHED,
+                Article.deleted_at == None,
+                Article.publish_at <= now
+            )
+            .options(
+                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.author).joinedload(User.avatar),
+                joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
+                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color),
+                load_only(
+                    Article.id,
+                    Article.title,
+                    Article.slug,
+                    Article.excerpt,
+                    Article.content,
+                    Article.thumbnail_object_key,
+                    Article.cover_object_key,
+                    Article.status,
+                    Article.is_featured,
+                    Article.is_pinned,
+                    Article.is_draft,
+                    Article.view_count,
+                    Article.word_count,
+                    Article.reading_time,
+                    Article.created_at,
+                    Article.updated_at,
+                    Article.publish_at,
+                    Article.published_at,
+                    # SEO & OpenGraph fields
+                    Article.seo_title,
+                    Article.seo_description,
+                    Article.canonical_url,
+                    Article.robots,
+                    Article.og_title,
+                    Article.og_description,
+                    Article.og_image,
+                )
+            )
+        )
+        
+        result = await db.execute(stmt)
+        article = result.scalars().first()
+        if not article:
+            raise NotFoundException(message=f"Không tìm thấy bài viết hoặc bài viết chưa được công bố.")
+
+        # 2. Tăng view_count tự động
+        article.view_count += 1
+        db.add(article)
+        await db.commit()
+        await db.refresh(article)
+
+        return article
+
 
 article_service = ArticleService()
+
+

@@ -235,7 +235,16 @@ class CategoryService:
         """Xóa mềm danh mục. Kiểm tra các ràng buộc danh mục con và bài viết."""
         category = await self.get_category_by_id(db, category_id)
 
+        # Chặn xóa nếu danh mục hệ thống/bị khóa
+        if category.is_locked:
+            raise BadRequestException(
+                message=f"Không thể xóa danh mục '{category.name}' vì đây là danh mục hệ thống/được khóa bảo vệ.",
+                error_code="CATEGORY_LOCKED",
+                details={"category_id": str(category_id)}
+            )
+
         # 1. Chặn xóa nếu còn danh mục con hoạt động
+
         children_query = select(Category.id).where(
             Category.parent_id == category_id, 
             Category.deleted_at == None

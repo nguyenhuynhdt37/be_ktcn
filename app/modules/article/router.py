@@ -21,6 +21,7 @@ from app.modules.article.schemas import (
     ArticleDetailResponse,
     ArticleDraftsCountResponse,
     ArticleUpdateRequest,
+    PortalArticleDetailResponse,
 )
 from app.modules.article.service import article_service
 
@@ -355,3 +356,16 @@ async def update_article(
         current_user=current_user
     )
     return ArticleListResponse.model_validate(article)
+
+
+@router.get("/portal/{slug}", response_model=PortalArticleDetailResponse)
+async def get_article_detail_portal(
+    slug: str,
+    db: AsyncSession = Depends(get_db)
+) -> PortalArticleDetailResponse:
+    """
+    Lấy chi tiết thông tin bài viết công khai theo slug cho Portal FE Client (Public API).
+    Hỗ trợ đếm lượt xem (view_count) tự động và cấu trúc siêu dữ liệu SEO/OpenGraph/JSON-LD.
+    """
+    article = await article_service.get_article_by_slug_portal(db, slug=slug)
+    return PortalArticleDetailResponse.model_validate(article)

@@ -127,14 +127,13 @@ async def create_menu(
 @menu_router.get("/code/{code}", response_model=MenuTreeResponse)
 async def get_menu_tree_by_code(
     code: str,
-    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> MenuTreeResponse:
     """
-    Lấy cây menu theo code (ví dụ: header, sidebar, footer).
-    Quyền yêu cầu: menu.view
+    Lấy cây menu theo code (ví dụ: header, sidebar, footer) mà không cần xác thực token (Public API).
     """
     return await menu_service.get_menu_tree_by_code(db, code)
+
 
 
 @menu_router.get("/{menu_id}", response_model=MenuResponse)

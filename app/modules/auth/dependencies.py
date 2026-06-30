@@ -12,6 +12,44 @@ from app.modules.auth.models import User
 from app.modules.auth.schemas import TokenPayload, UserResponse
 
 reusable_oauth2 = HTTPBearer()
+reusable_oauth2_optional = HTTPBearer(auto_error=False)
+
+
+async def get_current_user_optional(
+    http_auth: HTTPAuthorizationCredentials | None = Depends(reusable_oauth2_optional),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse | None:
+    """
+    Optional user authentication. Returns UserResponse if a valid token is provided,
+    otherwise returns None without raising UnauthorizedException.
+    """
+    if http_auth is None:
+        return None
+        
+    token = http_auth.credentials
+    try:
+        payload = decode_access_token(token)
+        token_data = TokenPayload(**payload)
+        if token_data.sub is None:
+            return None
+        user_uuid = uuid.UUID(token_data.sub)
+    except Exception:
+        return None
+
+    stmt = select(User).where(User.id == user_uuid)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user is None or not user.is_active:
+        return None
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_active=user.is_active,
+    )
+
 
 
 async def get_current_user(

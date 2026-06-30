@@ -5,6 +5,7 @@ from app.core.database import SessionLocal
 from app.modules.auth.models import User
 from app.modules.category.models import Category
 from app.modules.article.models import Article
+from app.modules.tag.models import Tag
 
 async def main():
     async with SessionLocal() as db:

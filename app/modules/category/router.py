@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -17,6 +17,8 @@ from app.modules.category.schemas import (
     CategorySlugCheckResponse,
 )
 from app.modules.category.service import category_service
+from app.modules.article.schemas import PortalArticlePaginationResponse, PortalArticleResponse
+from app.modules.article.service import article_service
 
 category_router = APIRouter()
 
@@ -29,13 +31,11 @@ category_router = APIRouter()
 async def list_categories(
     search: Optional[str] = None,
     status: Optional[str] = None,
-    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CategoryResponse]:
     """
-    Lấy danh sách tất cả các danh mục bài viết hoạt động.
+    Lấy danh sách tất cả các danh mục bài viết hoạt động (Public API).
     Hỗ trợ tìm kiếm theo tên và lọc theo trạng thái.
-    Quyền yêu cầu: category.view
     """
     categories = await category_service.list_categories(db, search=search, status=status)
     return [CategoryResponse.model_validate(c) for c in categories]
@@ -43,15 +43,13 @@ async def list_categories(
 
 @category_router.get("/tree", response_model=list[CategoryTreeNode])
 async def get_category_tree(
-    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[CategoryTreeNode]:
     """
-    Lấy cấu trúc cây danh mục bài viết hoàn chỉnh (Recursive tree).
-    Phục vụ cho sơ đồ quản lý kéo thả hoặc bộ chọn phân cấp.
-    Quyền yêu cầu: category.view
+    Lấy cấu trúc cây danh mục bài viết hoàn chỉnh (Public API).
     """
     return await category_service.get_category_tree(db)
+
 
 
 @category_router.get("/check-slug", response_model=CategorySlugCheckResponse)
@@ -73,15 +71,14 @@ async def check_category_slug(
 @category_router.get("/{category_id}", response_model=CategoryResponse)
 async def get_category(
     category_id: uuid.UUID,
-    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> CategoryResponse:
     """
-    Lấy chi tiết thông tin danh mục theo ID.
-    Quyền yêu cầu: category.view
+    Lấy chi tiết thông tin danh mục theo ID (Public API).
     """
     category = await category_service.get_category_by_id(db, category_id)
     return CategoryResponse.model_validate(category)
+
 
 
 @category_router.post("", response_model=CategoryResponse, status_code=201)
@@ -171,3 +168,36 @@ async def delete_category(
         db, current_user, "CATEGORY_DELETED", "category", category_id, None, request
     )
     await db.commit()
+
+
+@category_router.get("/{category_slug}/articles", response_model=PortalArticlePaginationResponse)
+async def list_category_articles_portal(
+    category_slug: str,
+    page: int = Query(default=1, ge=1, description="Chỉ số trang (bắt đầu từ 1)"),
+    page_size: int = Query(default=10, ge=1, le=100, alias="page_size", description="Số lượng bài viết trên mỗi trang"),
+    db: AsyncSession = Depends(get_db),
+) -> PortalArticlePaginationResponse:
+    """
+    Lấy danh sách các bài viết thuộc danh mục chỉ định qua slug cho Portal Client (Public API).
+    Mặc định sắp xếp: bài ghim (is_pinned) lên đầu, sau đó đến ngày công bố (publish_at) giảm dần.
+    """
+    items, total = await article_service.list_articles_portal(
+        db,
+        category_slug=category_slug,
+        page=page,
+        page_size=page_size
+    )
+
+    total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
+    has_next = page < total_pages
+    has_previous = page > 1
+
+    return PortalArticlePaginationResponse(
+        items=[PortalArticleResponse.model_validate(item) for item in items],
+        page=page,
+        page_size=page_size,
+        total_items=total,
+        total_pages=total_pages,
+        has_next=has_next,
+        has_previous=has_previous,
+    )

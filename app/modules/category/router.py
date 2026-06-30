@@ -31,24 +31,28 @@ category_router = APIRouter()
 async def list_categories(
     search: Optional[str] = None,
     status: Optional[str] = None,
+    only_has_articles: bool = Query(default=False, description="Chỉ lấy danh mục có chứa ít nhất 1 bài viết đã xuất bản"),
     db: AsyncSession = Depends(get_db),
 ) -> list[CategoryResponse]:
     """
     Lấy danh sách tất cả các danh mục bài viết hoạt động (Public API).
-    Hỗ trợ tìm kiếm theo tên và lọc theo trạng thái.
+    Hỗ trợ tìm kiếm, lọc theo trạng thái và lọc danh mục có bài viết.
     """
-    categories = await category_service.list_categories(db, search=search, status=status)
+    categories = await category_service.list_categories(db, search=search, status=status, only_has_articles=only_has_articles)
     return [CategoryResponse.model_validate(c) for c in categories]
 
 
 @category_router.get("/tree", response_model=list[CategoryTreeNode])
 async def get_category_tree(
+    with_article_count: bool = Query(default=False, description="Bật thống kê số lượng bài viết đã xuất bản"),
+    only_has_articles: bool = Query(default=False, description="Chỉ lấy cây danh mục có chứa bài viết đã xuất bản"),
     db: AsyncSession = Depends(get_db),
 ) -> list[CategoryTreeNode]:
     """
     Lấy cấu trúc cây danh mục bài viết hoàn chỉnh (Public API).
+    Hỗ trợ bật thống kê bài viết và tự động cắt tỉa các danh mục trống.
     """
-    return await category_service.get_category_tree(db)
+    return await category_service.get_category_tree(db, with_article_count=with_article_count, only_has_articles=only_has_articles)
 
 
 

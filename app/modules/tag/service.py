@@ -22,19 +22,20 @@ class TagService:
         db: AsyncSession,
         search: Optional[str] = None,
         is_active: Optional[bool] = None,
+        only_has_articles: bool = False,
         page: int = 1,
         limit: int = 10,
     ) -> Tuple[list[Tag], int]:
         """
-        Lấy danh sách các Tag chưa bị xóa mềm với phân trang và tìm kiếm.
+        Lấy danh sách các Tag chưa bị xóa mềm với phân trang, tìm kiếm và lọc tag có bài viết.
         """
         skip = (page - 1) * limit
 
         # Query đếm tổng số phần tử thỏa mãn điều kiện
-        count_stmt = select(func.count(Tag.id)).where(Tag.deleted_at == None)
+        count_stmt = select(func.count(Tag.id)).where(Tag.deleted_at.is_(None))
         
         # Query lấy dữ liệu
-        data_stmt = select(Tag).where(Tag.deleted_at == None)
+        data_stmt = select(Tag).where(Tag.deleted_at.is_(None))
 
         if search:
             search_filter = Tag.name.ilike(f"%{search}%") | Tag.description.ilike(f"%{search}%")
@@ -44,6 +45,20 @@ class TagService:
         if is_active is not None:
             count_stmt = count_stmt.where(Tag.is_active == is_active)
             data_stmt = data_stmt.where(Tag.is_active == is_active)
+
+        if only_has_articles:
+            from app.modules.article.models import Article, ArticleStatus, ArticleTag
+            has_articles_filter = Tag.id.in_(
+                select(ArticleTag.tag_id)
+                .join(Article, Article.id == ArticleTag.article_id)
+                .where(
+                    Article.deleted_at.is_(None),
+                    Article.is_draft.is_(False),
+                    Article.status == ArticleStatus.PUBLISHED
+                )
+            )
+            count_stmt = count_stmt.where(has_articles_filter)
+            data_stmt = data_stmt.where(has_articles_filter)
 
         # Đếm tổng
         count_result = await db.execute(count_stmt)
@@ -63,8 +78,8 @@ class TagService:
                 .join(Article, Article.id == ArticleTag.article_id)
                 .where(
                     ArticleTag.tag_id.in_(tag_ids),
-                    Article.deleted_at == None,
-                    Article.is_draft == False,
+                    Article.deleted_at.is_(None),
+                    Article.is_draft.is_(False),
                     Article.status == ArticleStatus.PUBLISHED
                 )
                 .group_by(ArticleTag.tag_id)

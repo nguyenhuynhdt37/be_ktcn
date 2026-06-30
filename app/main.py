@@ -18,6 +18,7 @@ from app.modules.article.router import router as article_router
 from app.modules.tag.router import router as tag_router
 from app.modules.faculty_staff.router import positions_router, departments_router, staffs_router
 from app.modules.banner.router import banners_router
+from app.modules.language.router import admin_router as language_admin_router, portal_router as language_portal_router
 from app.shared.redis import close_redis, init_redis
 
 # Import all models to ensure they are registered on Base.metadata and prevent NoReferencedTableError
@@ -29,6 +30,7 @@ from app.modules.article.models import Article
 from app.modules.tag.models import Tag
 from app.modules.faculty_staff.models import Department, Position, Staff
 from app.modules.banner.models import Banner
+from app.modules.language.models import Language
 
 # Initialize global logging configuration
 setup_logging()
@@ -103,3 +105,5 @@ app.include_router(positions_router, prefix=f"{settings.API_V1_STR}/positions", 
 app.include_router(departments_router, prefix=f"{settings.API_V1_STR}/departments", tags=["departments"])
 app.include_router(staffs_router, prefix=f"{settings.API_V1_STR}/staffs", tags=["staffs"])
 app.include_router(banners_router, prefix=f"{settings.API_V1_STR}/banners", tags=["banners"])
+app.include_router(language_admin_router, prefix=f"{settings.API_V1_STR}/languages", tags=["languages"])
+app.include_router(language_portal_router, prefix=f"{settings.API_V1_STR}/portal/languages", tags=["portal-languages"])

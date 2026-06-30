@@ -49,11 +49,11 @@ class CategoryService:
                 logger.warning(f"Failed to commit category schema alterations: {str(commit_ex)}")
 
     async def list_categories(
-        self, db: AsyncSession, search: Optional[str] = None, status: Optional[str] = None
+        self, db: AsyncSession, search: Optional[str] = None, status: Optional[str] = None, only_has_articles: bool = False
     ) -> list[Category]:
         """Lấy danh sách phẳng tất cả danh mục chưa bị xóa mềm."""
         await self._ensure_seo_columns(db)
-        query = select(Category).where(Category.deleted_at == None).options(
+        query = select(Category).where(Category.deleted_at.is_(None)).options(
             selectinload(Category.thumbnail),
             selectinload(Category.seo_og_image)
         )
@@ -62,6 +62,18 @@ class CategoryService:
             query = query.where(Category.name.ilike(f"%{search}%"))
         if status:
             query = query.where(Category.status == status)
+            
+        if only_has_articles:
+            from app.modules.article.models import Article, ArticleStatus
+            has_articles_filter = Category.id.in_(
+                select(Article.category_id)
+                .where(
+                    Article.deleted_at.is_(None),
+                    Article.is_draft.is_(False),
+                    Article.status == ArticleStatus.PUBLISHED
+                )
+            )
+            query = query.where(has_articles_filter)
             
         query = query.order_by(Category.sort_order, Category.created_at)
         result = await db.execute(query)
@@ -73,8 +85,8 @@ class CategoryService:
         counts_query = (
             select(Article.category_id, func.count(Article.id))
             .where(
-                Article.deleted_at == None,
-                Article.is_draft == False,
+                Article.deleted_at.is_(None),
+                Article.is_draft.is_(False),
                 Article.status == ArticleStatus.PUBLISHED
             )
             .group_by(Article.category_id)
@@ -273,35 +285,60 @@ class CategoryService:
     # Tree & Reorder
     # ──────────────────────────────────────────
 
-    async def get_category_tree(self, db: AsyncSession) -> list[CategoryTreeNode]:
+    async def get_category_tree(
+        self, db: AsyncSession, with_article_count: bool = False, only_has_articles: bool = False
+    ) -> list[CategoryTreeNode]:
         """Lấy toàn bộ cây danh mục phục vụ render phân cấp."""
         await self._ensure_seo_columns(db)
-        query = select(Category).where(Category.deleted_at == None).order_by(Category.sort_order).options(
+        
+        # Nếu yêu cầu chỉ lấy chuyên mục có bài viết, bắt buộc bật đếm tin
+        effective_with_count = with_article_count or only_has_articles
+
+        query = select(Category).where(Category.deleted_at.is_(None)).order_by(Category.sort_order).options(
             selectinload(Category.thumbnail),
             selectinload(Category.seo_og_image)
         )
         result = await db.execute(query)
         items = list(result.scalars().all())
 
-        # Tính toán article_count cho mỗi category
-        from app.modules.article.models import Article, ArticleStatus
-        from sqlalchemy import func
-        counts_query = (
-            select(Article.category_id, func.count(Article.id))
-            .where(
-                Article.deleted_at == None,
-                Article.is_draft == False,
-                Article.status == ArticleStatus.PUBLISHED
+        if effective_with_count:
+            # Tính toán article_count cho mỗi category
+            from app.modules.article.models import Article, ArticleStatus
+            from sqlalchemy import func
+            counts_query = (
+                select(Article.category_id, func.count(Article.id))
+                .where(
+                    Article.deleted_at.is_(None),
+                    Article.is_draft.is_(False),
+                    Article.status == ArticleStatus.PUBLISHED
+                )
+                .group_by(Article.category_id)
             )
-            .group_by(Article.category_id)
-        )
-        counts_res = await db.execute(counts_query)
-        counts_map = {row[0]: row[1] for row in counts_res.all() if row[0] is not None}
+            counts_res = await db.execute(counts_query)
+            counts_map = {row[0]: row[1] for row in counts_res.all() if row[0] is not None}
 
-        for item in items:
-            item.article_count = counts_map.get(item.id, 0)
+            for item in items:
+                item.article_count = counts_map.get(item.id, 0)
+        else:
+            for item in items:
+                item.article_count = 0
 
-        return self._build_tree(items)
+        root_nodes = self._build_tree(items)
+
+        # Tiến hành cắt tỉa đệ quy nếu only_has_articles = True
+        if only_has_articles:
+            def _prune_empty_nodes(nodes: list[CategoryTreeNode]) -> list[CategoryTreeNode]:
+                pruned = []
+                for node in nodes:
+                    if node.children:
+                        node.children = _prune_empty_nodes(node.children)
+                    if node.article_count > 0 or len(node.children) > 0:
+                        pruned.append(node)
+                return pruned
+
+            root_nodes = _prune_empty_nodes(root_nodes)
+
+        return root_nodes
 
     def _build_tree(self, items: list[Category]) -> list[CategoryTreeNode]:
         """Dựng cấu trúc đệ quy từ flat list danh mục."""

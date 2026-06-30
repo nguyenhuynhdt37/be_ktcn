@@ -18,6 +18,7 @@ from app.modules.article.models import *  # noqa: F401, F403
 from app.modules.tag.models import *  # noqa: F401, F403
 from app.modules.faculty_staff.models import *  # noqa: F401, F403
 from app.modules.banner.models import *  # noqa: F401, F403
+from app.modules.language.models import *  # noqa: F401, F403
 
 
 def include_object(object, name, type_, reflected, compare_to):

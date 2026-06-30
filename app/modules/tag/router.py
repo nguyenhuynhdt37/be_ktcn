@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -19,16 +19,16 @@ router = APIRouter()
 async def list_tags(
     search: Optional[str] = None,
     is_active: Optional[bool] = None,
+    only_has_articles: bool = Query(default=False, description="Chỉ lấy các tag có chứa ít nhất 1 bài viết đã xuất bản"),
     params: PaginationParams = Depends(),
-    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedResponse[TagResponse]:
     """
     Lấy danh sách các Tag phân trang.
-    Hỗ trợ tìm kiếm theo tên/mô tả và lọc theo trạng thái hoạt động.
+    Hỗ trợ tìm kiếm, lọc theo trạng thái và lọc các tag có bài viết.
     """
     tags, total = await tag_service.list_tags(
-        db, search=search, is_active=is_active, page=params.page, limit=params.limit
+        db, search=search, is_active=is_active, only_has_articles=only_has_articles, page=params.page, limit=params.limit
     )
     # Cast to schema response items
     response_items = [TagResponse.model_validate(tag) for tag in tags]

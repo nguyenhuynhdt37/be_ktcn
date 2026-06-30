@@ -35,6 +35,7 @@ from app.modules.article.schemas import BulkActionEnum, BulkActionResponse, Arti
 from app.modules.auth.models import User
 from app.modules.category.models import Category
 from app.modules.tag.models import Tag
+from app.modules.article.repositories.query_builder import ArticleQueryBuilder, ArticleFilterParams, SortStrategy
 
 
 class ArticleService:
@@ -65,137 +66,56 @@ class ArticleService:
         sort_dir: str = "desc",
     ) -> Tuple[list[Article], int]:
         """
-        Query danh sách bài viết từ database với phân trang, lọc và sắp xếp động tối ưu.
+        Query danh sách bài viết từ database với phân trang, lọc và sắp xếp động tối ưu (Admin CMS).
         """
-        skip = (page - 1) * page_size
-
-        # 1. Khởi tạo Query Builder
-        query = select(Article)
-        count_query = select(func.count(Article.id))
-
-        # 2. Xử lý bộ lọc Soft Delete (deleted parameter)
-        if deleted:
-            query = query.where(Article.deleted_at != None)
-            count_query = count_query.where(Article.deleted_at != None)
-        else:
-            query = query.where(Article.deleted_at == None)
-            count_query = count_query.where(Article.deleted_at == None)
-
-        # 3. Xử lý bộ lọc Trạng thái (status)
-        # Chỉ hiển thị bài viết khác DRAFT. Không cho phép query DRAFT qua API này.
-        if status:
-            if status == ArticleStatus.DRAFT:
-                # Trả về rỗng nếu cố tình query DRAFT
-                query = query.where(Article.status == None)
-                count_query = count_query.where(Article.status == None)
-            else:
-                query = query.where(Article.status == status)
-                count_query = count_query.where(Article.status == status)
-        else:
-            query = query.where(Article.status != ArticleStatus.DRAFT)
-            count_query = count_query.where(Article.status != ArticleStatus.DRAFT)
-
-        # 4. Xử lý lọc theo Danh mục (category_id)
-        if category_id:
-            query = query.where(Article.category_id == category_id)
-            count_query = count_query.where(Article.category_id == category_id)
-
-        # 5. Xử lý lọc theo Tác giả (author_id)
-        if author_id:
-            query = query.where(Article.author_id == author_id)
-            count_query = count_query.where(Article.author_id == author_id)
-
-        # 6. Xử lý lọc theo Tags (tag_ids - hỗ trợ nhiều tag theo logic AND)
-        if tag_ids:
-            for t_id in tag_ids:
-                query = query.where(Article.tags.any(Tag.id == t_id))
-                count_query = count_query.where(Article.tags.any(Tag.id == t_id))
-
-        # 7. Xử lý tìm kiếm (search - title hoặc slug, không phân biệt hoa thường)
-        if search:
-            search_filter = Article.title.ilike(f"%{search}%") | Article.slug.ilike(f"%{search}%")
-            query = query.where(search_filter)
-            count_query = count_query.where(search_filter)
-
-        # 8. Xử lý lọc các thuộc tính đặc biệt (is_featured, is_pinned)
-        if is_featured is not None:
-            query = query.where(Article.is_featured == is_featured)
-            count_query = count_query.where(Article.is_featured == is_featured)
-        if is_pinned is not None:
-            query = query.where(Article.is_pinned == is_pinned)
-            count_query = count_query.where(Article.is_pinned == is_pinned)
-        if is_draft is not None:
-            query = query.where(Article.is_draft == is_draft)
-            count_query = count_query.where(Article.is_draft == is_draft)
-
-        # 9. Xử lý lọc theo Khoảng thời gian tạo (created_from/created_to)
-        if created_from:
-            query = query.where(Article.created_at >= created_from)
-            count_query = count_query.where(Article.created_at >= created_from)
-        if created_to:
-            query = query.where(Article.created_at <= created_to)
-            count_query = count_query.where(Article.created_at <= created_to)
-
-        # 10. Xử lý lọc theo Khoảng thời gian xuất bản (published_from/published_to)
-        if published_from:
-            query = query.where(Article.published_at >= published_from)
-            count_query = count_query.where(Article.published_at >= published_from)
-        if published_to:
-            query = query.where(Article.published_at <= published_to)
-            count_query = count_query.where(Article.published_at <= published_to)
-
-        # 11. Đếm tổng số bản ghi thỏa mãn điều kiện
-        count_result = await db.execute(count_query)
-        total = count_result.scalar() or 0
-
-        # 12. Tối ưu hóa truy vấn nạp dữ liệu liên quan (Avoid N+1 & SELECT * )
-        query = query.options(
-            joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
-            joinedload(Article.author).joinedload(User.avatar),
-            joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-            selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color),
-            load_only(
-                Article.id,
-                Article.title,
-                Article.slug,
-                Article.excerpt,
-                Article.thumbnail_object_key,
-                Article.status,
-                Article.is_featured,
-                Article.is_pinned,
-                Article.is_draft,
-                Article.view_count,
-                Article.created_at,
-                Article.publish_at,
-                Article.published_at,
-            )
-        )
-
-        # 13. Sắp xếp động (Sorting)
-        sort_columns = {
-            "title": Article.title,
-            "created_at": Article.created_at,
-            "updated_at": Article.updated_at,
-            "published_at": Article.published_at,
-            "view_count": Article.view_count,
-            "sort_order": Article.sort_order,
-        }
-        col = sort_columns.get(sort_by, Article.created_at)
+        builder = ArticleQueryBuilder(db)
         
-        # Nếu sort_by được gán là is_pinned hoặc is_featured, ta luôn ưu tiên sort_order/created_at phụ trợ.
-        # Ở đây chỉ áp dụng cột chỉ định từ user
-        if sort_dir.lower() == "asc":
-            query = query.order_by(col.asc())
-        else:
-            query = query.order_by(col.desc())
-
-        # 14. Phân trang (Pagination)
-        query = query.offset(skip).limit(page_size)
-
-        # 15. Thực thi câu lệnh SQL lấy kết quả
-        result = await db.execute(query)
-        items = list(result.scalars().all())
-
+        # Áp dụng Admin scope và eager load quan hệ
+        builder.admin_scope(deleted=deleted)
+        builder.with_portal_relations()
+        
+        # Đóng gói filter params
+        filter_params = ArticleFilterParams(
+            category_id=category_id,
+            author_id=author_id,
+            tag_ids=tag_ids,
+            is_featured=is_featured,
+            is_pinned=is_pinned,
+            published_from=published_from,
+            published_to=published_to,
+            status=status
+        )
+        builder.filter(filter_params)
+        
+        # Bổ sung các bộ lọc đặc thù chỉ Admin mới có
+        if is_draft is not None:
+            builder.query = builder.query.where(Article.is_draft == is_draft)
+            
+        if created_from:
+            builder.query = builder.query.where(Article.created_at >= created_from)
+        if created_to:
+            builder.query = builder.query.where(Article.created_at <= created_to)
+            
+        # Tìm kiếm Generic
+        if search:
+            builder.search(
+                fields=[Article.title, Article.slug],
+                keyword=search
+            )
+            
+        # Đếm tổng
+        total = await builder.get_total_count()
+        
+        # Sắp xếp và phân trang
+        builder.sort(
+            strategy=SortStrategy.CUSTOM,
+            sort_by=sort_by,
+            sort_dir=sort_dir
+        )
+        builder.paginate(page=page, page_size=page_size)
+        
+        # Thực thi
+        items = await builder.execute()
         return items, total
 
     async def archive_article(
@@ -1213,6 +1133,78 @@ class ArticleService:
         await db.refresh(article)
 
         return article
+
+    async def list_all_articles_portal(
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 10,
+        search: Optional[str] = None,
+        category_slug: Optional[str] = None,
+        tag_slug: Optional[str] = None,
+        author_username: Optional[str] = None,
+        is_featured: Optional[bool] = None,
+        is_pinned: Optional[bool] = None,
+        has_thumbnail: Optional[bool] = None,
+        published_from: Optional[datetime] = None,
+        published_to: Optional[datetime] = None,
+        sort_by: str = "publish_at",
+        sort_dir: str = "desc",
+    ) -> Tuple[list[Article], int]:
+        """
+        Query danh sách tất cả các bài viết công khai cho Portal FE Client.
+        Hỗ trợ tìm kiếm, lọc theo slugs/flags, phân trang số và sắp xếp động tối ưu.
+        """
+        builder = ArticleQueryBuilder(db)
+        
+        # Áp dụng Portal scope và eager load quan hệ
+        builder.public_scope()
+        builder.with_portal_relations()
+        
+        # Đóng gói filter params
+        filter_params = ArticleFilterParams(
+            category_slug=category_slug,
+            tag_slug=tag_slug,
+            author_username=author_username,
+            is_featured=is_featured,
+            is_pinned=is_pinned,
+            has_thumbnail=has_thumbnail,
+            published_from=published_from,
+            published_to=published_to
+        )
+        builder.filter(filter_params)
+        
+        # Tìm kiếm Generic
+        if search:
+            builder.search(
+                fields=[Article.title, Article.excerpt, Article.content],
+                keyword=search
+            )
+            
+        # Đếm tổng
+        total = await builder.get_total_count()
+        
+        # Định đoạt Sort Strategy
+        if sort_by != "publish_at":
+            strategy = SortStrategy.CUSTOM
+        elif search:
+            strategy = SortStrategy.SEARCH
+        elif category_slug:
+            strategy = SortStrategy.CATEGORY
+        else:
+            strategy = SortStrategy.HOME
+            
+        builder.sort(
+            strategy=strategy,
+            sort_by=sort_by,
+            sort_dir=sort_dir
+        )
+        builder.paginate(page=page, page_size=page_size)
+        
+        # Thực thi
+        items = await builder.execute()
+        return items, total
 
 
 article_service = ArticleService()

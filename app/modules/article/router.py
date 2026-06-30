@@ -22,6 +22,8 @@ from app.modules.article.schemas import (
     ArticleDraftsCountResponse,
     ArticleUpdateRequest,
     PortalArticleDetailResponse,
+    PortalArticlePaginationResponse,
+    PortalArticleResponse,
 )
 from app.modules.article.service import article_service
 
@@ -320,6 +322,89 @@ async def create_article(
     return ArticleListResponse.model_validate(article)
 
 
+@router.get("/portal", response_model=PortalArticlePaginationResponse)
+async def list_all_articles_portal(
+    page: int = Query(default=1, ge=1, description="Chỉ số trang (bắt đầu từ 1)"),
+    page_size: int = Query(default=10, ge=1, le=100, alias="page_size", description="Số lượng bài viết trên mỗi trang"),
+    search: Optional[str] = Query(default=None, description="Tìm kiếm theo tiêu đề/nội dung"),
+    category_slug: Optional[str] = Query(default=None, description="Lọc theo slug danh mục"),
+    tag_slug: Optional[str] = Query(default=None, description="Lọc theo slug của thẻ tag"),
+    author_username: Optional[str] = Query(default=None, description="Lọc theo username tác giả"),
+    is_featured: Optional[bool] = Query(default=None, description="Lọc bài viết nổi bật"),
+    is_pinned: Optional[bool] = Query(default=None, description="Lọc bài viết ghim"),
+    has_thumbnail: Optional[bool] = Query(default=None, description="Lọc bài viết có ảnh đại diện"),
+    published_from: Optional[datetime] = Query(default=None, description="Lọc thời gian xuất bản từ"),
+    published_to: Optional[datetime] = Query(default=None, description="Lọc thời gian xuất bản đến"),
+    sort_by: str = Query(default="publish_at", description="Trường sắp xếp (publish_at, view_count, created_at, v.v.)"),
+    sort_dir: str = Query(default="desc", description="Hướng sắp xếp (asc, desc)"),
+    db: AsyncSession = Depends(get_db),
+) -> PortalArticlePaginationResponse:
+    """
+    Lấy danh sách tất cả các bài viết công khai trên toàn hệ thống phục vụ Portal (Public API).
+    Hỗ trợ tìm kiếm, lọc phức tạp theo danh mục, tag, tác giả, cờ hiển thị và sắp xếp động.
+    """
+    allowed_sort_fields = {
+        "title", "slug", "created_at", "updated_at", 
+        "publish_at", "published_at", "view_count", 
+        "sort_order", "is_featured", "is_pinned"
+    }
+    if sort_by not in allowed_sort_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Trường sắp xếp 'sort_by' không hợp lệ. Cho phép: {', '.join(allowed_sort_fields)}"
+        )
+
+    if sort_dir.lower() not in {"asc", "desc"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Hướng sắp xếp 'sort_dir' chỉ được phép là 'asc' hoặc 'desc'"
+        )
+
+    items, total = await article_service.list_all_articles_portal(
+        db=db,
+        page=page,
+        page_size=page_size,
+        search=search,
+        category_slug=category_slug,
+        tag_slug=tag_slug,
+        author_username=author_username,
+        is_featured=is_featured,
+        is_pinned=is_pinned,
+        has_thumbnail=has_thumbnail,
+        published_from=published_from,
+        published_to=published_to,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+
+    total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
+    has_next = page < total_pages
+    has_previous = page > 1
+
+    return PortalArticlePaginationResponse(
+        items=[PortalArticleResponse.model_validate(item) for item in items],
+        page=page,
+        page_size=page_size,
+        total_items=total,
+        total_pages=total_pages,
+        has_next=has_next,
+        has_previous=has_previous,
+    )
+
+
+@router.get("/portal/{slug}", response_model=PortalArticleDetailResponse)
+async def get_article_detail_portal(
+    slug: str,
+    db: AsyncSession = Depends(get_db)
+) -> PortalArticleDetailResponse:
+    """
+    Lấy chi tiết thông tin bài viết công khai theo slug cho Portal FE Client (Public API).
+    Hỗ trợ đếm lượt xem (view_count) tự động và cấu trúc siêu dữ liệu SEO/OpenGraph/JSON-LD.
+    """
+    article = await article_service.get_article_by_slug_portal(db, slug=slug)
+    return PortalArticleDetailResponse.model_validate(article)
+
+
 @router.get("/{article_id}", response_model=ArticleDetailResponse)
 async def get_article_detail(
     article_id: uuid.UUID,
@@ -356,16 +441,3 @@ async def update_article(
         current_user=current_user
     )
     return ArticleListResponse.model_validate(article)
-
-
-@router.get("/portal/{slug}", response_model=PortalArticleDetailResponse)
-async def get_article_detail_portal(
-    slug: str,
-    db: AsyncSession = Depends(get_db)
-) -> PortalArticleDetailResponse:
-    """
-    Lấy chi tiết thông tin bài viết công khai theo slug cho Portal FE Client (Public API).
-    Hỗ trợ đếm lượt xem (view_count) tự động và cấu trúc siêu dữ liệu SEO/OpenGraph/JSON-LD.
-    """
-    article = await article_service.get_article_by_slug_portal(db, slug=slug)
-    return PortalArticleDetailResponse.model_validate(article)

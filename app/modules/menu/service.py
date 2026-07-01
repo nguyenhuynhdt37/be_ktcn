@@ -3,6 +3,7 @@ from typing import Optional
 
 from loguru import logger
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import (
@@ -20,6 +21,7 @@ from app.modules.menu.schemas import (
     MenuItemUpdate,
     MenuTreeResponse,
     MenuUpdate,
+    build_menu_item_resolved,
 )
 from app.modules.menu.target_resolver import TargetInfo, target_resolver
 
@@ -125,25 +127,13 @@ class MenuService:
         self, item: MenuItem, target_info: Optional[TargetInfo] = None
     ) -> MenuItemResponse:
         """Convert MenuItem model thành MenuItemResponse với computed has_link và target_info."""
-        has_link = item.target_type is not None or item.external_url is not None
-        return MenuItemResponse(
-            id=item.id,
-            menu_id=item.menu_id,
-            parent_id=item.parent_id,
-            title=item.title,
-            target_type=item.target_type,
-            target_id=item.target_id,
-            target_info=target_info,
-            external_url=item.external_url,
-            open_in_new_tab=item.open_in_new_tab,
-            icon=item.icon,
-            depth=item.depth,
-            sort_order=item.sort_order,
-            is_visible=item.is_visible,
-            has_link=has_link,
-            created_at=item.created_at,
-            updated_at=item.updated_at,
-        )
+        res_dict = build_menu_item_resolved(item)
+        res_dict["target_info"] = target_info
+        res_dict["has_link"] = item.target_type is not None or item.external_url is not None
+        # Đảm bảo giữ nguyên các trường kiểu datetime nếu có
+        res_dict["created_at"] = getattr(item, "created_at", None)
+        res_dict["updated_at"] = getattr(item, "updated_at", None)
+        return MenuItemResponse(**res_dict)
 
     async def _get_menu_item(
         self, db: AsyncSession, menu_id: uuid.UUID, item_id: uuid.UUID
@@ -302,13 +292,40 @@ class MenuService:
             db.add(child)
             await self._update_children_depth(db, child.id, depth_diff)
 
+    def _apply_translation(self, item: MenuItem, lang: str = "vi") -> MenuItem:
+        """Đọc bản dịch của ngôn ngữ chỉ định và gán vào tiêu đề động title của MenuItem."""
+        if not item:
+            return item
+
+        item.title = ""
+        target_trans = None
+        for t in getattr(item, "translations", []):
+            if t.language and t.language.code == lang:
+                target_trans = t
+                break
+
+        if not target_trans and lang != "vi":
+            for t in getattr(item, "translations", []):
+                if t.language and t.language.code == "vi":
+                    target_trans = t
+                    break
+
+        if not target_trans and getattr(item, "translations", []):
+            target_trans = item.translations[0]
+
+        if target_trans:
+            item.title = target_trans.title
+
+        return item
+
     async def create_menu_item(
         self,
         db: AsyncSession,
         menu_id: uuid.UUID,
         data: MenuItemCreate,
+        lang: str = "vi",
     ) -> MenuItem:
-        """Tạo menu item mới với validation đầy đủ."""
+        """Tạo menu item mới với cấu hình đa ngôn ngữ."""
         # Validate menu tồn tại
         await self.get_menu_by_id(db, menu_id)
 
@@ -316,7 +333,7 @@ class MenuService:
         if data.parent_id is not None:
             await self._get_menu_item(db, menu_id, data.parent_id)
 
-        # Validate target tồn tại và đang ACTIVE (generic — hỗ trợ mọi target_type)
+        # Validate target tồn tại và đang ACTIVE
         if data.target_type and data.target_type != MenuItemTargetType.EXTERNAL_LINK and data.target_id:
             await target_resolver.validate(db, data.target_type.value, data.target_id)
 
@@ -329,13 +346,52 @@ class MenuService:
                 details={"depth": depth, "max_allowed": MAX_DEPTH},
             )
 
-        item = MenuItem(
-            menu_id=menu_id,
-            depth=depth,
-            **data.model_dump(),
-        )
+        # 1. Tạo bản ghi MenuItem chính
+        item_data = {
+            "menu_id": menu_id,
+            "parent_id": data.parent_id,
+            "target_type": data.target_type,
+            "target_id": data.target_id,
+            "external_url": data.external_url,
+            "open_in_new_tab": data.open_in_new_tab,
+            "sort_order": data.sort_order,
+            "is_visible": data.is_visible,
+            "depth": depth
+        }
+        item = MenuItem(**item_data)
         db.add(item)
         await db.flush()
+
+        # 2. Tạo các bản dịch translations
+        from app.modules.language.models import Language
+        from app.modules.menu.models import MenuItemTranslation
+
+        lang_res = await db.execute(select(Language))
+        languages = lang_res.scalars().all()
+        lang_map = {l.code: l.id for l in languages}
+
+        for lang_code, trans_data in data.translations.items():
+            lang_id = lang_map.get(lang_code)
+            if not lang_id:
+                continue
+            translation = MenuItemTranslation(
+                menu_item_id=item.id,
+                language_id=lang_id,
+                title=trans_data.title
+            )
+            db.add(translation)
+
+        await db.flush()
+        db.expire(item, ["translations"])
+
+        # Load lại MenuItem với đầy đủ translations
+        query = select(MenuItem).where(MenuItem.id == item.id).options(
+            selectinload(MenuItem.translations).selectinload(MenuItemTranslation.language)
+        )
+        res = await db.execute(query)
+        item = res.scalar_one()
+
+        self._apply_translation(item, lang=lang)
         logger.info(f"Created menu item: {item.title} (id={item.id}, menu_id={menu_id})")
         return item
 
@@ -344,12 +400,27 @@ class MenuService:
         db: AsyncSession,
         menu_id: uuid.UUID,
         item_id: uuid.UUID,
+        lang: str = "vi",
     ) -> MenuItemResponse:
         """Lấy chi tiết menu item (cho panel config). Resolve target_info nếu có."""
-        item = await self._get_menu_item(db, menu_id, item_id)
+        from app.modules.menu.models import MenuItemTranslation
+        query = select(MenuItem).where(MenuItem.menu_id == menu_id, MenuItem.id == item_id).options(
+            selectinload(MenuItem.translations).selectinload(MenuItemTranslation.language)
+        )
+        res = await db.execute(query)
+        item = res.scalar_one_or_none()
+        if not item:
+            raise NotFoundException(
+                message="Không tìm thấy menu item",
+                error_code="MENU_ITEM_NOT_FOUND",
+                details={"item_id": str(item_id)},
+            )
+
         resolved_info = None
         if item.target_type and item.target_type != MenuItemTargetType.EXTERNAL_LINK and item.target_id:
             resolved_info = await target_resolver.resolve(db, item.target_type.value, item.target_id)
+        
+        self._apply_translation(item, lang=lang)
         return self._to_item_response(item, target_info=resolved_info)
 
     async def update_menu_item(
@@ -358,12 +429,26 @@ class MenuService:
         menu_id: uuid.UUID,
         item_id: uuid.UUID,
         data: MenuItemUpdate,
+        lang: str = "vi",
     ) -> MenuItem:
         """
         Cập nhật chi tiết menu item (title, target, icon...).
         Không xử lý parent_id/sort_order — dùng reorder API cho kéo thả.
         """
-        item = await self._get_menu_item(db, menu_id, item_id)
+        # Load item kèm translations
+        from app.modules.menu.models import MenuItemTranslation
+        query = select(MenuItem).where(MenuItem.menu_id == menu_id, MenuItem.id == item_id).options(
+            selectinload(MenuItem.translations).selectinload(MenuItemTranslation.language)
+        )
+        res = await db.execute(query)
+        item = res.scalar_one_or_none()
+        if not item:
+            raise NotFoundException(
+                message="Không tìm thấy menu item để cập nhật",
+                error_code="MENU_ITEM_NOT_FOUND",
+                details={"item_id": str(item_id)},
+            )
+
         update_data = data.model_dump(exclude_unset=True)
 
         # Validate target nếu thay đổi target_type hoặc target_id
@@ -374,12 +459,50 @@ class MenuService:
                 type_value = effective_type.value if hasattr(effective_type, 'value') else effective_type
                 await target_resolver.validate(db, type_value, effective_id)
 
-        # Apply updates
+        # Apply updates cho các trường chung
         for field, value in update_data.items():
-            setattr(item, field, value)
+            if field != "translations":
+                setattr(item, field, value)
+
+        # Apply updates cho translations
+        if "translations" in update_data and update_data["translations"]:
+            from app.modules.language.models import Language
+            
+            lang_res = await db.execute(select(Language))
+            languages = lang_res.scalars().all()
+            lang_map = {l.code: l.id for l in languages}
+
+            # Lấy các translations hiện có của item
+            existing_trans = {t.language.code: t for t in item.translations if t.language}
+
+            for lang_code, trans_data in update_data["translations"].items():
+                lang_id = lang_map.get(lang_code)
+                if not lang_id:
+                    continue
+                title_val = trans_data.get("title") if isinstance(trans_data, dict) else getattr(trans_data, "title", "")
+                if lang_code in existing_trans:
+                    existing_trans[lang_code].title = title_val
+                    db.add(existing_trans[lang_code])
+                else:
+                    new_trans = MenuItemTranslation(
+                        menu_item_id=item.id,
+                        language_id=lang_id,
+                        title=title_val
+                    )
+                    db.add(new_trans)
 
         db.add(item)
         await db.flush()
+        db.expire(item, ["translations"])
+
+        # Reload
+        query = select(MenuItem).where(MenuItem.id == item.id).options(
+            selectinload(MenuItem.translations).selectinload(MenuItemTranslation.language)
+        )
+        res = await db.execute(query)
+        item = res.scalar_one()
+
+        self._apply_translation(item, lang=lang)
         logger.info(f"Updated menu item: {item.title} (id={item.id})")
         return item
 
@@ -396,12 +519,16 @@ class MenuService:
     # Tree & Reorder
     # ──────────────────────────────────────────
 
-    async def _build_menu_tree(self, db: AsyncSession, menu: Menu) -> MenuTreeResponse:
-        """Build tree response từ menu object, bao gồm batch resolve target_info."""
+    async def _build_menu_tree(self, db: AsyncSession, menu: Menu, lang: str = "vi") -> MenuTreeResponse:
+        """Build tree response từ menu object, bao gồm batch resolve target_info và đa ngôn ngữ."""
+        from app.modules.menu.models import MenuItemTranslation
         query = (
             select(MenuItem)
             .where(MenuItem.menu_id == menu.id)
             .order_by(MenuItem.depth, MenuItem.sort_order)
+            .options(
+                selectinload(MenuItem.translations).selectinload(MenuItemTranslation.language)
+            )
         )
         result = await db.execute(query)
         items = list(result.scalars().all())
@@ -409,6 +536,7 @@ class MenuService:
         # Batch resolve target_info cho tất cả items có target (hiệu suất: 1 query per type)
         targets_to_resolve: list[tuple[str, uuid.UUID]] = []
         for item in items:
+            self._apply_translation(item, lang=lang)
             if item.target_type and item.target_type != MenuItemTargetType.EXTERNAL_LINK and item.target_id:
                 targets_to_resolve.append((item.target_type.value, item.target_id))
 
@@ -427,15 +555,15 @@ class MenuService:
             items=tree_nodes,
         )
 
-    async def get_menu_tree_by_code(self, db: AsyncSession, code: str) -> MenuTreeResponse:
+    async def get_menu_tree_by_code(self, db: AsyncSession, code: str, lang: str = "vi") -> MenuTreeResponse:
         """Lấy cây menu theo code (cho public frontend)."""
         menu = await self.get_menu_by_code(db, code)
-        return await self._build_menu_tree(db, menu)
+        return await self._build_menu_tree(db, menu, lang=lang)
 
-    async def get_menu_tree_by_id(self, db: AsyncSession, menu_id: uuid.UUID) -> MenuTreeResponse:
+    async def get_menu_tree_by_id(self, db: AsyncSession, menu_id: uuid.UUID, lang: str = "vi") -> MenuTreeResponse:
         """Lấy cây menu theo ID (cho admin kéo thả)."""
         menu = await self.get_menu_by_id(db, menu_id)
-        return await self._build_menu_tree(db, menu)
+        return await self._build_menu_tree(db, menu, lang=lang)
 
     def _build_tree(
         self,
@@ -451,23 +579,11 @@ class MenuService:
         root_nodes: list[MenuItemTreeNode] = []
 
         for item in items:
-            has_link = item.target_type is not None or item.external_url is not None
-            t_info = resolved_map.get(item.target_id) if item.target_id else None
-            node = MenuItemTreeNode(
-                id=item.id,
-                title=item.title,
-                target_type=item.target_type,
-                target_id=item.target_id,
-                target_info=t_info,
-                external_url=item.external_url,
-                open_in_new_tab=item.open_in_new_tab,
-                icon=item.icon,
-                depth=item.depth,
-                sort_order=item.sort_order,
-                is_visible=item.is_visible,
-                has_link=has_link,
-                children=[],
-            )
+            res_dict = build_menu_item_resolved(item)
+            res_dict["target_info"] = resolved_map.get(item.target_id) if item.target_id else None
+            res_dict["has_link"] = item.target_type is not None or item.external_url is not None
+            res_dict["children"] = []
+            node = MenuItemTreeNode(**res_dict)
             node_map[item.id] = node
 
         # Gắn children vào parent

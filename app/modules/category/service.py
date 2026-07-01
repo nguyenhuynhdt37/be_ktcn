@@ -28,7 +28,6 @@ class CategoryNode:
         self.sort_order = item.sort_order
         self.is_visible = item.is_visible
         self.is_weekly_schedule = item.is_weekly_schedule
-        self.is_locked = item.is_locked
         self.article_count = getattr(item, "article_count", 0)
         self.translations = getattr(item, "translations", [])
         self.name = getattr(item, "name", "")
@@ -246,7 +245,6 @@ class CategoryService:
             "sort_order": data.sort_order or 0,
             "is_visible": data.is_visible if data.is_visible is not None else True,
             "is_weekly_schedule": data.is_weekly_schedule if data.is_weekly_schedule is not None else False,
-            "is_locked": data.is_locked if data.is_locked is not None else False,
             "created_by": current_user_id,
             "updated_by": current_user_id
         }
@@ -311,7 +309,7 @@ class CategoryService:
             await self._check_circular_reference(db, category_id, new_parent_id)
 
         # Cập nhật các trường dùng chung ở root
-        for field in ["parent_id", "thumbnail_id", "status", "sort_order", "is_visible", "is_weekly_schedule", "is_locked"]:
+        for field in ["parent_id", "thumbnail_id", "status", "sort_order", "is_visible", "is_weekly_schedule"]:
             if field in update_data:
                 setattr(category, field, update_data[field])
 
@@ -410,13 +408,7 @@ class CategoryService:
         """Xóa mềm danh mục. Kiểm tra các ràng buộc danh mục con và bài viết."""
         category = await self.get_category_by_id(db, category_id)
 
-        # Chặn xóa nếu danh mục hệ thống/bị khóa
-        if category.is_locked:
-            raise BadRequestException(
-                message=f"Không thể xóa danh mục '{category.name}' vì đây là danh mục hệ thống/được khóa bảo vệ.",
-                error_code="CATEGORY_LOCKED",
-                details={"category_id": str(category_id)}
-            )
+
 
         # 1. Chặn xóa nếu còn danh mục con hoạt động
 

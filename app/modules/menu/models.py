@@ -15,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models.base import BaseModel
+from app.modules.language.models import Language
 
 
 class MenuItemTargetType(str, enum.Enum):
@@ -80,8 +81,6 @@ class MenuItem(BaseModel):
         ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-
     # Polymorphic target
     target_type: Mapped[Optional[MenuItemTargetType]] = mapped_column(
         Enum(MenuItemTargetType, name="menu_item_target_type", native_enum=False),
@@ -93,8 +92,6 @@ class MenuItem(BaseModel):
         Boolean, default=False, nullable=False
     )
 
-    # Display
-    icon: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     depth: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -109,4 +106,34 @@ class MenuItem(BaseModel):
         back_populates="parent",
         cascade="all, delete-orphan",
         order_by="MenuItem.sort_order",
+    )
+    translations: Mapped[list["MenuItemTranslation"]] = relationship(
+        "MenuItemTranslation",
+        back_populates="menu_item",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class MenuItemTranslation(BaseModel):
+    """Bản dịch của từng mục menu theo ngôn ngữ."""
+    __tablename__ = "menu_item_translations"
+
+    menu_item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    language_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("languages.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    menu_item: Mapped["MenuItem"] = relationship(
+        "MenuItem", back_populates="translations"
+    )
+    language: Mapped["Language"] = relationship(
+        "Language"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("menu_item_id", "language_id", name="uq_menu_item_language_unique"),
     )

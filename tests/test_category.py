@@ -52,7 +52,6 @@ async def test_create_category_api(client: AsyncClient, admin_headers: dict, db_
         "is_visible": True,
         "thumbnail_id": None,
         "is_weekly_schedule": True,
-        "is_locked": False,
         "sort_order": 10,
         "translations": {
             "vi": {
@@ -111,7 +110,6 @@ async def test_update_category_api(client: AsyncClient, admin_headers: dict, db_
         "is_visible": True,
         "thumbnail_id": None,
         "is_weekly_schedule": False,
-        "is_locked": False,
         "sort_order": 0,
         "translations": {
             "vi": {
@@ -376,7 +374,6 @@ async def test_portal_category_api(client: AsyncClient, admin_headers: dict):
         "is_visible": True,
         "thumbnail_id": None,
         "is_weekly_schedule": False,
-        "is_locked": False,
         "sort_order": 10,
         "translations": {
             "vi": {

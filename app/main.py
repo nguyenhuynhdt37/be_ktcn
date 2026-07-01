@@ -12,7 +12,7 @@ from app.modules.auth.router import router as auth_router, users_router
 from app.modules.audit.router import audit_router
 from app.modules.health.router import router as health_router
 from app.modules.media.router import media_router
-from app.modules.menu.router import menu_router
+from app.modules.menu.routers import admin_router as menu_admin_router, portal_router as menu_portal_router
 from app.modules.category.routers import admin_router as category_admin_router, portal_router as category_portal_router
 from app.modules.article.router import router as article_router
 from app.modules.tag.router import router as tag_router
@@ -101,7 +101,8 @@ app.include_router(users_router, prefix=settings.API_V1_STR)
 
 app.include_router(media_router, prefix=f"{settings.API_V1_STR}/media", tags=["media"])
 app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/audit-logs", tags=["audit"])
-app.include_router(menu_router, prefix=f"{settings.API_V1_STR}/menus", tags=["menus"])
+app.include_router(menu_admin_router, prefix=f"{settings.API_V1_STR}/admin/menus", tags=["admin-menus"])
+app.include_router(menu_portal_router, prefix=f"{settings.API_V1_STR}/portal/menus", tags=["portal-menus"])
 app.include_router(category_admin_router, prefix=f"{settings.API_V1_STR}/admin/categories", tags=["admin-categories"])
 app.include_router(category_portal_router, prefix=f"{settings.API_V1_STR}/portal/categories", tags=["portal-categories"])
 app.include_router(article_router, prefix=f"{settings.API_V1_STR}/articles", tags=["articles"])

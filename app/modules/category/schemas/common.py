@@ -79,7 +79,6 @@ def build_seo_resolved_before_validation(data: Any) -> Any:
         "sort_order": safe_getattr(data, "sort_order", 0),
         "is_visible": safe_getattr(data, "is_visible", True),
         "is_weekly_schedule": safe_getattr(data, "is_weekly_schedule", False),
-        "is_locked": safe_getattr(data, "is_locked", False),
         "article_count": safe_getattr(data, "article_count", 0),
         "is_translated": is_translated,
         "translations": translations_dict,
@@ -112,7 +111,6 @@ class CategoryCreate(BaseModel):
     status: str = Field(default="ACTIVE", description="Trạng thái vòng đời (ACTIVE, INACTIVE)")
     is_visible: bool = Field(default=True, description="Hiển thị ngoài website")
     is_weekly_schedule: bool = Field(default=False, description="Đánh dấu danh mục là lịch tuần")
-    is_locked: bool = Field(default=False, description="Đánh dấu danh mục hệ thống không được xóa")
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch của danh mục")
 
     @field_validator("parent_id", mode="before")
@@ -131,7 +129,6 @@ class CategoryUpdate(BaseModel):
     status: Optional[str] = None
     is_visible: Optional[bool] = None
     is_weekly_schedule: Optional[bool] = None
-    is_locked: Optional[bool] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 
     @field_validator("parent_id", mode="before")

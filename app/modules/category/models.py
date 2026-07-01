@@ -34,7 +34,6 @@ class Category(BaseModel):
     status: Mapped[str] = mapped_column(String(50), default="DRAFT", nullable=False, index=True)
     is_visible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_weekly_schedule: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_locked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Audit log fields (người tạo, sửa, xóa)
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(

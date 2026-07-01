@@ -15,7 +15,6 @@ class AdminCategoryResponse(BaseModel):
     sort_order: int
     is_visible: bool
     is_weekly_schedule: bool
-    is_locked: bool
     article_count: int = 0
     is_translated: dict[str, bool] = {}
     translations: dict[str, Any] = {}
@@ -42,7 +41,6 @@ class AdminCategoryTreeNode(BaseModel):
     sort_order: int
     is_visible: bool
     is_weekly_schedule: bool
-    is_locked: bool
     article_count: int = 0
     is_translated: dict[str, bool] = {}
     translations: dict[str, Any] = {}

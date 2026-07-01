@@ -69,6 +69,7 @@ def build_menu_item_resolved(data: Any) -> Any:
         "parent_id": safe_getattr(data, "parent_id", None),
         "target_type": safe_getattr(data, "target_type", None),
         "target_id": safe_getattr(data, "target_id", None),
+        "target_info": safe_getattr(data, "target_info", None),
         "external_url": safe_getattr(data, "external_url", None),
         "open_in_new_tab": safe_getattr(data, "open_in_new_tab", False),
         "depth": safe_getattr(data, "depth", 1),
@@ -116,7 +117,7 @@ class MenuItemCreate(BaseModel):
     is_visible: bool = True
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch của menu item")
 
-    @field_validator("parent_id", mode="before")
+    @field_validator("parent_id", "target_type", "target_id", "external_url", mode="before")
     @classmethod
     def empty_str_to_none(cls, v: Any) -> Any:
         if v == "":
@@ -135,7 +136,7 @@ class MenuItemUpdate(BaseModel):
     is_visible: Optional[bool] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 
-    @field_validator("parent_id", mode="before")
+    @field_validator("parent_id", "target_type", "target_id", "external_url", mode="before")
     @classmethod
     def empty_str_to_none(cls, v: Any) -> Any:
         if v == "":

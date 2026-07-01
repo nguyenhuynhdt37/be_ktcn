@@ -3,8 +3,33 @@ import uuid
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, model_validator
 from app.modules.menu.models import MenuItemTargetType
-from app.modules.menu.target_resolver import TargetInfo
 from app.modules.menu.schemas.common import build_menu_item_resolved
+
+
+class PortalTargetInfo(BaseModel):
+    """Thông tin target đã resolve chỉ chứa title và slug cho Portal Client."""
+    title: str
+    slug: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_title(cls, data: Any) -> Any:
+        if not data:
+            return data
+        if isinstance(data, dict):
+            title = data.get("title") or data.get("name")
+            return {
+                "title": title,
+                "slug": data.get("slug")
+            }
+        title = getattr(data, "title", None) or getattr(data, "name", None)
+        slug = getattr(data, "slug", None)
+        return {
+            "title": title,
+            "slug": slug
+        }
 
 
 class PortalMenuItemResponse(BaseModel):
@@ -14,7 +39,7 @@ class PortalMenuItemResponse(BaseModel):
     parent_id: Optional[uuid.UUID] = None
     target_type: Optional[MenuItemTargetType] = None
     target_id: Optional[uuid.UUID] = None
-    target_info: Optional[TargetInfo] = None
+    target_info: Optional[PortalTargetInfo] = None
     external_url: Optional[str] = None
     open_in_new_tab: bool
     depth: int
@@ -38,7 +63,7 @@ class PortalMenuItemTreeNode(BaseModel):
     parent_id: Optional[uuid.UUID] = None
     target_type: Optional[MenuItemTargetType] = None
     target_id: Optional[uuid.UUID] = None
-    target_info: Optional[TargetInfo] = None
+    target_info: Optional[PortalTargetInfo] = None
     external_url: Optional[str] = None
     open_in_new_tab: bool
     depth: int

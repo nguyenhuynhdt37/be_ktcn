@@ -418,7 +418,7 @@ class MenuService:
 
         resolved_info = None
         if item.target_type and item.target_type != MenuItemTargetType.EXTERNAL_LINK and item.target_id:
-            resolved_info = await target_resolver.resolve(db, item.target_type.value, item.target_id)
+            resolved_info = await target_resolver.resolve(db, item.target_type.value, item.target_id, lang=lang)
         
         self._apply_translation(item, lang=lang)
         return self._to_item_response(item, target_info=resolved_info)
@@ -542,7 +542,7 @@ class MenuService:
 
         resolved_map: dict[uuid.UUID, TargetInfo] = {}
         if targets_to_resolve:
-            resolved_map = await target_resolver.batch_resolve(db, targets_to_resolve)
+            resolved_map = await target_resolver.batch_resolve(db, targets_to_resolve, lang=lang)
 
         tree_nodes = self._build_tree(items, resolved_map)
 

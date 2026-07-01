@@ -26,14 +26,13 @@ class TargetInfo(BaseModel):
     path: Optional[str] = None  # breadcrumb path, VD: "Tin tức / Tuyển sinh"
     is_weekly_schedule: Optional[bool] = None
 
-
     model_config = ConfigDict(from_attributes=True)
 
 
 # Type alias cho resolver function
-ResolverFunc = Callable[[AsyncSession, uuid.UUID], Awaitable[TargetInfo]]
+ResolverFunc = Callable[[AsyncSession, uuid.UUID, str], Awaitable[TargetInfo]]
 ValidatorFunc = Callable[[AsyncSession, uuid.UUID], Awaitable[None]]
-BatchResolverFunc = Callable[[AsyncSession, list[uuid.UUID]], Awaitable[dict[uuid.UUID, TargetInfo]]]
+BatchResolverFunc = Callable[[AsyncSession, list[uuid.UUID], str], Awaitable[dict[uuid.UUID, TargetInfo]]]
 
 
 class TargetResolverRegistry:
@@ -69,19 +68,19 @@ class TargetResolverRegistry:
             return  # Không block — cho phép target_type chưa có resolver (forward-compatible)
         await validator(db, target_id)
 
-    async def resolve(self, db: AsyncSession, target_type: str, target_id: uuid.UUID) -> Optional[TargetInfo]:
+    async def resolve(self, db: AsyncSession, target_type: str, target_id: uuid.UUID, lang: str = "vi") -> Optional[TargetInfo]:
         """Resolve thông tin chi tiết của 1 target."""
         resolver = self._resolvers.get(target_type)
         if not resolver:
             return None
         try:
-            return await resolver(db, target_id)
+            return await resolver(db, target_id, lang)
         except Exception:
             logger.warning(f"Failed to resolve target: type={target_type}, id={target_id}")
             return None
 
     async def batch_resolve(
-        self, db: AsyncSession, targets: list[tuple[str, uuid.UUID]]
+        self, db: AsyncSession, targets: list[tuple[str, uuid.UUID]], lang: str = "vi"
     ) -> dict[uuid.UUID, TargetInfo]:
         """
         Batch resolve nhiều targets cùng lúc, nhóm theo target_type để tối ưu query.
@@ -99,7 +98,7 @@ class TargetResolverRegistry:
             batch_resolver = self._batch_resolvers.get(t_type)
             if batch_resolver:
                 try:
-                    resolved = await batch_resolver(db, t_ids)
+                    resolved = await batch_resolver(db, t_ids, lang)
                     result.update(resolved)
                 except Exception as e:
                     logger.warning(f"Batch resolve failed for type={t_type}: {e}")
@@ -142,9 +141,10 @@ async def _validate_category(db: AsyncSession, target_id: uuid.UUID) -> None:
         )
 
 
-async def _resolve_category(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
+async def _resolve_category(db: AsyncSession, target_id: uuid.UUID, lang: str = "vi") -> TargetInfo:
     """Resolve thông tin chi tiết của một Category (bao gồm breadcrumb path)."""
     from app.modules.category.models import Category
+    from app.modules.category.service import category_service
 
     query = select(Category).where(Category.id == target_id, Category.deleted_at == None)
     result = await db.execute(query)
@@ -152,6 +152,9 @@ async def _resolve_category(db: AsyncSession, target_id: uuid.UUID) -> TargetInf
 
     if not category:
         return TargetInfo(id=str(target_id), type="CATEGORY", name="[Đã xóa]", status="DELETED")
+
+    # Dịch category hiện tại
+    category_service._apply_translation(category, lang=lang)
 
     # Build breadcrumb path bằng cách truy ngược parent chain
     path_parts = [category.name]
@@ -164,15 +167,17 @@ async def _resolve_category(db: AsyncSession, target_id: uuid.UUID) -> TargetInf
             break
         visited.add(current_parent_id)
 
-        parent_query = select(Category.id, Category.name, Category.parent_id).where(
+        parent_query = select(Category).where(
             Category.id == current_parent_id, Category.deleted_at == None
         )
         parent_result = await db.execute(parent_query)
-        parent_row = parent_result.one_or_none()
+        parent_row = parent_result.scalar_one_or_none()
 
         if not parent_row:
             break
 
+        # Dịch parent row trước khi lấy name
+        category_service._apply_translation(parent_row, lang=lang)
         path_parts.insert(0, parent_row.name)
         current_parent_id = parent_row.parent_id
 
@@ -187,13 +192,13 @@ async def _resolve_category(db: AsyncSession, target_id: uuid.UUID) -> TargetInf
     )
 
 
-
-async def _batch_resolve_categories(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
+async def _batch_resolve_categories(db: AsyncSession, target_ids: list[uuid.UUID], lang: str = "vi") -> dict[uuid.UUID, TargetInfo]:
     """
     Batch resolve nhiều categories cùng lúc bằng 1 câu IN query duy nhất.
     Sau đó build breadcrumb path cho từng category.
     """
     from app.modules.category.models import Category
+    from app.modules.category.service import category_service
 
     if not target_ids:
         return {}
@@ -203,6 +208,10 @@ async def _batch_resolve_categories(db: AsyncSession, target_ids: list[uuid.UUID
     result = await db.execute(query)
     all_categories = {c.id: c for c in result.scalars().all()}
 
+    # Áp dụng dịch cho tất cả categories trong map
+    for cat in all_categories.values():
+        category_service._apply_translation(cat, lang=lang)
+
     resolved: dict[uuid.UUID, TargetInfo] = {}
 
     for t_id in target_ids:
@@ -211,7 +220,7 @@ async def _batch_resolve_categories(db: AsyncSession, target_ids: list[uuid.UUID
             resolved[t_id] = TargetInfo(id=str(t_id), type="CATEGORY", name="[Đã xóa]", status="DELETED")
             continue
 
-        # Build breadcrumb path in-memory (đã có tất cả categories trong bộ nhớ)
+        # Build breadcrumb path in-memory (đã có tất cả categories trong bộ nhớ và đã dịch)
         path_parts = [cat.name]
         current_parent_id = cat.parent_id
         visited: set[uuid.UUID] = {cat.id}
@@ -236,7 +245,6 @@ async def _batch_resolve_categories(db: AsyncSession, target_ids: list[uuid.UUID
             path=" / ".join(path_parts),
             is_weekly_schedule=cat.is_weekly_schedule,
         )
-
 
     return resolved
 
@@ -277,7 +285,7 @@ async def _validate_article(db: AsyncSession, target_id: uuid.UUID) -> None:
         )
 
 
-async def _resolve_article(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
+async def _resolve_article(db: AsyncSession, target_id: uuid.UUID, lang: str = "vi") -> TargetInfo:
     """Resolve thông tin chi tiết của một Article."""
     from app.modules.article.models import Article
 
@@ -299,7 +307,7 @@ async def _resolve_article(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo
     )
 
 
-async def _batch_resolve_articles(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
+async def _batch_resolve_articles(db: AsyncSession, target_ids: list[uuid.UUID], lang: str = "vi") -> dict[uuid.UUID, TargetInfo]:
     """Batch resolve nhiều articles cùng lúc bằng 1 câu IN query."""
     from app.modules.article.models import Article
 
@@ -364,7 +372,7 @@ async def _validate_department(db: AsyncSession, target_id: uuid.UUID) -> None:
         )
 
 
-async def _resolve_department(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
+async def _resolve_department(db: AsyncSession, target_id: uuid.UUID, lang: str = "vi") -> TargetInfo:
     """Resolve thông tin chi tiết của một Department."""
     from app.modules.faculty_staff.models import Department
 
@@ -375,17 +383,18 @@ async def _resolve_department(db: AsyncSession, target_id: uuid.UUID) -> TargetI
     if not dept:
         return TargetInfo(id=str(target_id), type="DEPARTMENT", name="[Đã xóa]", status="DELETED")
 
+    name_val = dept.english_name if lang == "en" and dept.english_name else dept.name
     return TargetInfo(
         id=str(dept.id),
         type="DEPARTMENT",
-        name=dept.name,
+        name=name_val,
         slug=dept.slug,
         status="ACTIVE" if dept.is_active else "INACTIVE",
         path=f"/bo-mon/{dept.slug}",
     )
 
 
-async def _batch_resolve_departments(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
+async def _batch_resolve_departments(db: AsyncSession, target_ids: list[uuid.UUID], lang: str = "vi") -> dict[uuid.UUID, TargetInfo]:
     """Batch resolve nhiều departments cùng lúc bằng 1 câu IN query."""
     from app.modules.faculty_staff.models import Department
 
@@ -403,10 +412,11 @@ async def _batch_resolve_departments(db: AsyncSession, target_ids: list[uuid.UUI
             resolved[t_id] = TargetInfo(id=str(t_id), type="DEPARTMENT", name="[Đã xóa]", status="DELETED")
             continue
 
+        name_val = dept.english_name if lang == "en" and dept.english_name else dept.name
         resolved[t_id] = TargetInfo(
             id=str(dept.id),
             type="DEPARTMENT",
-            name=dept.name,
+            name=name_val,
             slug=dept.slug,
             status="ACTIVE" if dept.is_active else "INACTIVE",
             path=f"/bo-mon/{dept.slug}",
@@ -425,7 +435,7 @@ async def _validate_page(db: AsyncSession, target_id: uuid.UUID) -> None:
     return
 
 
-async def _resolve_page(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
+async def _resolve_page(db: AsyncSession, target_id: uuid.UUID, lang: str = "vi") -> TargetInfo:
     """Resolve Page (Mock)."""
     return TargetInfo(
         id=str(target_id),
@@ -436,9 +446,9 @@ async def _resolve_page(db: AsyncSession, target_id: uuid.UUID) -> TargetInfo:
     )
 
 
-async def _batch_resolve_pages(db: AsyncSession, target_ids: list[uuid.UUID]) -> dict[uuid.UUID, TargetInfo]:
+async def _batch_resolve_pages(db: AsyncSession, target_ids: list[uuid.UUID], lang: str = "vi") -> dict[uuid.UUID, TargetInfo]:
     """Batch resolve Pages (Mock)."""
-    return {t_id: await _resolve_page(db, t_id) for t_id in target_ids}
+    return {t_id: await _resolve_page(db, t_id, lang) for t_id in target_ids}
 
 
 # ──────────────────────────────────────────────
@@ -478,4 +488,3 @@ target_resolver.register(
     resolver=_resolve_page,
     batch_resolver=_batch_resolve_pages,
 )
-

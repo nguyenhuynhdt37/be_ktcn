@@ -1,0 +1,38 @@
+from pydantic import BaseModel, Field, field_validator
+from typing import List
+
+class TranslationRequest(BaseModel):
+    text: str = Field(..., description="Văn bản tiếng Việt cần dịch")
+    target_languages: List[str] = Field(
+        default=["en"], 
+        description="Danh sách ngôn ngữ đích cần dịch (chỉ hỗ trợ 'en')"
+    )
+
+    @field_validator("target_languages")
+    @classmethod
+    def validate_languages(cls, v: List[str]) -> List[str]:
+        allowed = {"en"}
+        invalid = [lang for lang in v if lang not in allowed]
+        if invalid:
+            raise ValueError(f"Ngôn ngữ đích không hợp lệ: {invalid}. Chỉ hỗ trợ 'en'.")
+        if not v:
+            raise ValueError("Danh sách ngôn ngữ đích không được rỗng.")
+        return list(set(v))
+
+class BatchTranslationRequest(BaseModel):
+    texts: List[str] = Field(..., description="Danh sách các đoạn văn bản tiếng Việt cần dịch")
+    target_languages: List[str] = Field(
+        default=["en"],
+        description="Danh sách ngôn ngữ đích cần dịch (chỉ hỗ trợ 'en')"
+    )
+
+    @field_validator("target_languages")
+    @classmethod
+    def validate_languages(cls, v: List[str]) -> List[str]:
+        allowed = {"en"}
+        invalid = [lang for lang in v if lang not in allowed]
+        if invalid:
+            raise ValueError(f"Ngôn ngữ đích không hợp lệ: {invalid}. Chỉ hỗ trợ 'en'.")
+        if not v:
+            raise ValueError("Danh sách ngôn ngữ đích không được rỗng.")
+        return list(set(v))

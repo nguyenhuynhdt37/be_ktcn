@@ -29,6 +29,9 @@ class Language(BaseModel):
     flag: Mapped[Optional[MediaItem]] = relationship(
         MediaItem, foreign_keys=[flag_id]
     )
+    translations: Mapped[list["CategoryTranslation"]] = relationship(
+        "CategoryTranslation", back_populates="language"
+    )
 
     # Soft delete support
     deleted_at: Mapped[Optional[datetime]] = mapped_column(

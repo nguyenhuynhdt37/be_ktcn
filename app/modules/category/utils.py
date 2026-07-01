@@ -22,8 +22,8 @@ def generate_slug(text: str) -> str:
     # 4. Loại bỏ các ký tự dấu (Combining Diacritical Marks)
     text = "".join(c for c in text if not unicodedata.combining(c))
 
-    # 5. Loại bỏ ký tự đặc biệt (chỉ giữ lại a-z, 0-9, khoảng trắng, gạch ngang)
-    text = re.sub(r"[^a-z0-9\s-]", "", text)
+    # 5. Loại bỏ ký tự đặc biệt (chỉ giữ lại a-z, 0-9, chữ Lào, khoảng trắng, gạch ngang)
+    text = re.sub(r"[^a-z0-9\u0e80-\u0eff\s-]", "", text)
 
     # 6. Thay thế khoảng trắng và gạch ngang liên tiếp thành một dấu gạch ngang
     text = re.sub(r"[\s-]+", "-", text)

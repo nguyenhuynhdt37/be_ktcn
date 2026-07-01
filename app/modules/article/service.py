@@ -986,8 +986,21 @@ class ArticleService:
         Query danh sách bài viết công khai thuộc một danh mục cụ thể cho Portal FE Client.
         Truy vấn tối ưu hóa, hỗ trợ phân trang và nạp sẵn (avoid N+1) đầy đủ SEO metadata.
         """
-        # 1. Tìm Category theo slug
-        cat_stmt = select(Category).where(Category.slug == category_slug, Category.deleted_at == None)
+        # 1. Tìm Category theo slug (hỗ trợ slug gốc hoặc slug bản dịch)
+        from app.modules.category.models import CategoryTranslation
+        from sqlalchemy import or_
+        cat_stmt = (
+            select(Category)
+            .outerjoin(CategoryTranslation)
+            .where(
+                or_(
+                    Category.slug == category_slug,
+                    CategoryTranslation.slug == category_slug
+                ),
+                Category.deleted_at.is_(None)
+            )
+            .limit(1)
+        )
         cat_res = await db.execute(cat_stmt)
         category = cat_res.scalars().first()
         if not category:

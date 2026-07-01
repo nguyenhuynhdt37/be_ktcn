@@ -112,7 +112,7 @@ async def test_admin_language_api_flow(client: AsyncClient, admin_headers: dict)
     list_res = await client.get("/api/v1/languages", headers=admin_headers)
     assert list_res.status_code == 200
     languages = list_res.json()
-    assert len(languages) == 3  # Luôn có 3 ngôn ngữ hệ thống vi, en, lo
+    assert len(languages) == 2  # Luôn có 2 ngôn ngữ hệ thống vi, en
     
     vi_lang = next(item for item in languages if item["code"] == "vi")
     en_lang = next(item for item in languages if item["code"] == "en")

@@ -96,6 +96,13 @@ class Settings(BaseSettings):
     # AI Integration
     GEMINI_API_KEY: str = ""
 
+    # Translation Config (NLLB-200)
+    TRANSLATION_MODEL_NAME: str = "facebook/nllb-200-distilled-600M"
+    TRANSLATION_DEVICE: str = "cpu"
+    TRANSLATION_CACHE_TTL: int = 86400
+    TRANSLATION_MAX_INPUT_LENGTH: int = 1000
+    TRANSLATION_MAX_BATCH_SIZE: int = 50
+
 
 
 settings = Settings()

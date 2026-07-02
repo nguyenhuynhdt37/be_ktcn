@@ -67,3 +67,30 @@ venv.bak/
 *.log
 logs/
 test_out.txt
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+app.db
+
+# Large / Binary files (Model weights, checkpoints, logs, assets)
+*.bin
+*.pt
+*.pth
+*.onnx
+*.weights
+*.h5
+*.pickle
+*.pkl
+
+# Dynamic AI Configuration Settings
+app/core/ai_settings.json
+omniroute/config.yaml
+
+# Scratch directories
+scratch/
+
+# DB Dumps
+university_cms.sql
+*.sql

@@ -82,3 +82,48 @@ async def admin_headers(client, admin_credentials) -> dict[str, str]:
     assert login_res.status_code == 200
     token = login_res.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+from unittest.mock import patch
+
+@pytest.fixture(autouse=True)
+def mock_ai_service():
+    def mock_translate_text(text: str) -> str:
+        mapping = {
+            "Khoa Khoa học Máy tính": "Department of Computer Science",
+            "Tuyển sinh năm 2026": "Enrollment in 2026",
+            "Tuyển sinh": "Admissions",
+            "Nghiên cứu khoa học": "Scientific research",
+            "giảng viên": "lecturer",
+            "vào đây": "here",
+            "Họ và Tên": "Full Name",
+            "Chức vụ": "Position",
+            "Nguyễn Văn A": "Nguyen Van A",
+            "Trưởng bộ môn": "Head of Department",
+            "Xin chào": "Hello",
+            "Thông báo tuyển sinh năm 2026": "Enrollment announcement for 2026",
+            "Thông báo": "Announcement",
+        }
+        result = text
+        for k, v in mapping.items():
+            result = result.replace(k, v)
+        return result
+
+    with patch("app.shared.ai.service.AIService.generate_text") as mock_gen:
+        async def mock_generate(prompt, system_instruction=None, **kwargs):
+            import json
+            # Trích xuất nội dung cần dịch từ prompt
+            content = prompt.split(":\n")[-1].strip()
+            
+            if "JSON" in (system_instruction or ""):
+                try:
+                    texts = json.loads(content)
+                    return json.dumps([mock_translate_text(t) for t in texts], ensure_ascii=False)
+                except:
+                    return json.dumps(["Mocked translation"])
+            
+            return mock_translate_text(content)
+            
+        mock_gen.side_effect = mock_generate
+        yield mock_gen
+

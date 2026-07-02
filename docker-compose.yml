@@ -46,6 +46,20 @@ services:
     volumes:
       - minio_data:/data
 
+  omniroute:
+    image: litellm/litellm:main-latest
+    container_name: omniroute_gateway
+    ports:
+      - "8090:4000"
+    volumes:
+      - ./omniroute/config.yaml:/app/config.yaml
+    command: [ "--config", "/app/config.yaml", "--port", "4000", "--detailed_debug" ]
+    environment:
+      - LITELLM_MASTER_KEY=sk-omniroute-secret-key
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 volumes:
   postgres_data:
   redis_data:

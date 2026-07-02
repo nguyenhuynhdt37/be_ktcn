@@ -63,11 +63,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup: Warmup translation model (NLLB-200)
     translation_service.warmup()
     
-    # Startup: Launch daily AI models sync task at 00:00
-    import asyncio
-    from app.modules.article.tasks import start_article_scheduler_task
-    asyncio.create_task(start_article_scheduler_task())
-    
     yield
     # Shutdown: Clean up connections
     await close_redis()

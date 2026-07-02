@@ -33,3 +33,4 @@ class AIRequestLog(BaseModel):
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # SUCCESS, FAILED
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+

@@ -1,4 +1,4 @@
 {
-    "active_model": "openrouter-model",
+    "active_model": "gemini-2.5-flash",
     "active_embedding_model": "embedding-model"
 }

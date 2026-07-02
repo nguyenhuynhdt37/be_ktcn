@@ -88,3 +88,4 @@ class AIEmbeddingPlaygroundResponse(BaseModel):
     dimensions: int = Field(..., description="Số chiều vector")
     latency_ms: int = Field(..., description="Thời gian phản hồi tính bằng mili-giây")
     actual_model: str = Field(..., description="Tên model thực tế đã xử lý (đã xử lý fallback nếu có)")
+

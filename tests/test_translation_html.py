@@ -83,3 +83,19 @@ async def test_html_translation_endpoint(client: AsyncClient, admin_headers: dic
     
     # Thẻ a chứa "vào đây" -> "here" hoặc tương đương
     assert "here" in a_trans.text.strip().lower() or "click" in a_trans.text.strip().lower()
+
+
+@pytest.mark.asyncio
+async def test_html_translation_with_context_endpoint(client: AsyncClient, admin_headers: dict):
+    original_html = "<p>Chào mừng <strong>giảng viên</strong> mới.</p>"
+    payload = {
+        "html": original_html,
+        "target_languages": ["en"],
+        "context": "article_content"
+    }
+    res = await client.post("/api/v1/translation/html", json=payload, headers=admin_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert "en" in data
+    assert "lecturer" in data["en"].lower()
+

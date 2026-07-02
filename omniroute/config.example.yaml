@@ -1,0 +1,83 @@
+general_settings:
+  master_key: your-omniroute-master-key-here
+model_list:
+- litellm_params:
+    model: mock/
+  model_name: mock-model
+- litellm_params:
+    api_key: your-gemini-api-key-here
+    model: gemini/gemini-2.5-flash
+  model_name: gemini-2.5-flash
+- litellm_params:
+    api_key: your-gemini-api-key-here
+    model: gemini/gemini-2.5-flash
+  model_name: gemini-2.5-flash
+- litellm_params:
+    api_base: https://open.bigmodel.cn/api/paas/v4
+    api_key: your-zhipu-api-key-here
+    model: openai/glm-4-flash
+  model_name: glm-4-flash
+- litellm_params:
+    api_base: https://open.bigmodel.cn/api/paas/v4
+    api_key: your-zhipu-api-key-here
+    model: openai/glm-4
+  model_name: glm-4
+- litellm_params:
+    api_key: your-groq-api-key-here
+    model: groq/llama-3.3-70b-versatile
+  model_name: llama-3.3-70b
+- litellm_params:
+    api_key: your-gemini-api-key-here
+    model: openrouter/google/gemini-2.5-flash
+  model_name: openrouter-model
+- litellm_params:
+    api_key: your-cerebras-api-key-here
+    model: cerebras/gemma-4-31b
+  model_name: cerebras-model
+- litellm_params:
+    api_key: your-mistral-api-key-here
+    model: mistral/mistral-large-latest
+  model_name: mistral-model
+- litellm_params:
+    api_base: http://host.docker.internal:11434
+    model: ollama/llama3.2
+  model_name: llama3.2
+- litellm_params:
+    api_key: your-gemini-api-key-here
+    model: gemini/gemini-embedding-2
+  model_name: embedding-model
+router_settings:
+  disable_health_check: true
+  fallbacks:
+  - glm-4:
+    - glm-4-flash
+    - gemini-2.5-flash
+    - mistral-model
+    - openrouter-model
+    - llama3.2
+  - glm-4-flash:
+    - gemini-2.5-flash
+    - mistral-model
+    - openrouter-model
+    - llama3.2
+  - cerebras-model:
+    - llama-3.3-70b
+    - gemini-2.5-flash
+    - mistral-model
+    - openrouter-model
+    - llama3.2
+  - llama-3.3-70b:
+    - gemini-2.5-flash
+    - mistral-model
+    - openrouter-model
+    - llama3.2
+  - gemini-2.5-flash:
+    - mistral-model
+    - openrouter-model
+    - llama3.2
+  - mistral-model:
+    - openrouter-model
+    - llama3.2
+  - openrouter-model:
+    - llama3.2
+  routing_strategy: simple-shuffle

@@ -76,11 +76,12 @@ def build_article_resolved_before_validation(data: Any) -> Any:
     def transform_url(v: Optional[str]) -> Optional[str]:
         if not v:
             return v
-        if v.startswith("http://") or v.startswith("https://"):
+        if v.startswith("http://") or v.startswith("https://") or v.startswith("data:"):
             return v
+        v_clean = v.lstrip("/")
         from app.core.config import settings
         protocol = "https" if settings.MINIO_SECURE else "http"
-        return f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{v}"
+        return f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{v_clean}"
 
     thumbnail_key = safe_getattr(data, "thumbnail_object_key", None)
     cover_key = safe_getattr(data, "cover_object_key", None)

@@ -85,3 +85,62 @@ async def test_batch_size_exceeded_api(client: AsyncClient, admin_headers: dict)
     res = await client.post("/api/v1/translation/batch", json=payload, headers=admin_headers)
     assert res.status_code == 400
     assert res.json()["error"]["code"] == "TRANSLATION_BATCH_SIZE_EXCEEDED"
+
+
+@pytest.mark.asyncio
+async def test_translation_with_context_api(client: AsyncClient, admin_headers: dict):
+    """Test API dịch đơn lẻ có truyền context hợp lệ."""
+    payload = {
+        "text": "Khoa Khoa học Máy tính",
+        "target_languages": ["en"],
+        "context": "department_name"
+    }
+    res = await client.post("/api/v1/translation", json=payload, headers=admin_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["vi"] == "Khoa Khoa học Máy tính"
+    assert "en" in data
+    assert data["en"] == "Department of Computer Science"
+
+
+@pytest.mark.asyncio
+async def test_translation_with_null_context_api(client: AsyncClient, admin_headers: dict):
+    """Test API dịch đơn lẻ với context là null (tương thích ngược)."""
+    payload = {
+        "text": "Tuyển sinh",
+        "target_languages": ["en"],
+        "context": None
+    }
+    res = await client.post("/api/v1/translation", json=payload, headers=admin_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert "en" in data
+
+
+@pytest.mark.asyncio
+async def test_translation_invalid_context_api(client: AsyncClient, admin_headers: dict):
+    """Test API dịch đơn lẻ với context không hợp lệ (trả về 422)."""
+    payload = {
+        "text": "Tuyển sinh",
+        "target_languages": ["en"],
+        "context": "invalid_context_code"
+    }
+    res = await client.post("/api/v1/translation", json=payload, headers=admin_headers)
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_batch_translation_with_context_api(client: AsyncClient, admin_headers: dict):
+    """Test API dịch batch có truyền context."""
+    payload = {
+        "texts": ["Tuyển sinh", "Nghiên cứu khoa học"],
+        "target_languages": ["en"],
+        "context": "category_name"
+    }
+    res = await client.post("/api/v1/translation/batch", json=payload, headers=admin_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) == 2
+    assert data[0]["en"] == "Admissions"
+    assert data[1]["en"] == "Scientific research"
+

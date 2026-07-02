@@ -28,11 +28,13 @@ async def translate_text(
 ) -> dict[str, str]:
     """
     Dịch tự động một văn bản tiếng Việt sang danh sách các ngôn ngữ đích chỉ định.
+    Hỗ trợ truyền context để AI dịch chính xác theo ngữ cảnh.
     Yêu cầu token xác thực Admin.
     """
     return await translation_service.translate_text(
         text=payload.text,
-        target_languages=payload.target_languages
+        target_languages=payload.target_languages,
+        context=payload.context
     )
 
 
@@ -47,6 +49,7 @@ async def translate_texts_batch(
 ) -> list[dict[str, str]]:
     """
     Dịch tự động hàng loạt đoạn văn bản tiếng Việt sang danh sách các ngôn ngữ đích chỉ định (Tối ưu hóa batching).
+    Hỗ trợ truyền context để AI dịch chính xác theo ngữ cảnh cho toàn bộ danh sách.
     Yêu cầu token xác thực Admin.
     """
     if len(payload.texts) > settings.TRANSLATION_MAX_BATCH_SIZE:
@@ -55,7 +58,8 @@ async def translate_texts_batch(
         )
     return await translation_service.translate_batch(
         texts=payload.texts,
-        target_languages=payload.target_languages
+        target_languages=payload.target_languages,
+        context=payload.context
     )
 
 
@@ -71,11 +75,13 @@ async def translate_html(
     """
     Dịch tự động nội dung HTML của trình soạn thảo văn bản (CKEditor) sang các ngôn ngữ chỉ định.
     Bảo toàn cấu trúc HTML, định dạng, CSS classes, liên kết, bảng biểu, hình ảnh.
+    Hỗ trợ truyền context để AI dịch chính xác ngữ cảnh HTML.
     Yêu cầu token xác thực Admin.
     """
     return await translation_service.translate_html(
         html_content=payload.html,
-        target_languages=payload.target_languages
+        target_languages=payload.target_languages,
+        context=payload.context
     )
 
 

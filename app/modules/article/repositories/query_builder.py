@@ -7,7 +7,7 @@ from sqlalchemy import select, or_, desc, asc, func
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.article.models import Article, ArticleStatus
+from app.modules.article.models import Article, ArticleStatus, ArticleTranslation
 from app.modules.category.models import Category
 from app.modules.tag.models import Tag
 from app.modules.auth.models import User
@@ -21,8 +21,8 @@ class SortStrategy(str, enum.Enum):
 
 # Whitelist các cột cho phép sắp xếp
 SORT_COLUMNS = {
-    "title": Article.title,
-    "slug": Article.slug,
+    "title": ArticleTranslation.title,
+    "slug": ArticleTranslation.slug,
     "created_at": Article.created_at,
     "updated_at": Article.updated_at,
     "publish_at": Article.publish_at,
@@ -80,6 +80,21 @@ class ArticleQueryBuilder:
         self.db = db
         self.query = select(Article)
         self._joined_relations = set()
+        self.resolved_lang_id = None
+
+    def resolve_translation(self, language_id: uuid.UUID):
+        """
+        Join ArticleTranslation và ghi nhận language_id để tự động
+        chuyển hướng các tác vụ filter, search, sort sang bảng dịch.
+        """
+        self.resolved_lang_id = language_id
+        self.query = self.query.join(
+            ArticleTranslation,
+            (ArticleTranslation.article_id == Article.id) &
+            (ArticleTranslation.language_id == language_id),
+            isouter=True
+        )
+        return self
 
     def public_scope(self):
         """Chỉ truy vấn các bài viết đã xuất bản, không nháp, không xóa mềm, đã đến giờ phát hành"""
@@ -102,11 +117,19 @@ class ArticleQueryBuilder:
 
     def with_portal_relations(self):
         """Eager load các quan hệ cần thiết cho Portal để tránh N+1 Query"""
+        from app.modules.article.models import ArticleTranslation
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
         self.query = self.query.options(
-            joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+            joinedload(Article.category).options(
+                selectinload(Category.translations).selectinload(CategoryTranslation.language)
+            ),
             joinedload(Article.author).joinedload(User.avatar),
             joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-            selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+            selectinload(Article.tags).options(
+                selectinload(Tag.translations).selectinload(TagTranslation.language)
+            ),
+            selectinload(Article.translations).selectinload(ArticleTranslation.language)
         )
         return self
 
@@ -120,12 +143,20 @@ class ArticleQueryBuilder:
     def search(self, fields: list, keyword: str):
         """
         Kiến trúc tìm kiếm văn bản Generic.
-        Hiện tại: Thực hiện tìm kiếm qua toán tử ILIKE của SQL.
-        Thiết kế mở: Sau này dễ dàng thay thế bằng PostgreSQL Full Text Search (tsvector), 
-        pg_trgm trigram index, Hybrid Search hoặc AI Vector Search mà không thay đổi signature của hàm.
+        Thực hiện tìm kiếm qua toán tử ILIKE của SQL, tự động map sang ArticleTranslation nếu đã resolve_translation.
         """
         if keyword and fields:
             search_term = f"%{keyword}%"
+            if self.resolved_lang_id:
+                mapped_fields = []
+                for field in fields:
+                    col_name = field.key
+                    if hasattr(ArticleTranslation, col_name):
+                        mapped_fields.append(getattr(ArticleTranslation, col_name))
+                    else:
+                        mapped_fields.append(field)
+                fields = mapped_fields
+
             conditions = [field.ilike(search_term) for field in fields]
             self.query = self.query.where(or_(*conditions))
         return self
@@ -138,11 +169,40 @@ class ArticleQueryBuilder:
         # --- Slug Filters (Dành riêng cho Portal Client) ---
         if params.category_slug:
             self._safe_join(Article.category, Category)
-            self.query = self.query.where(Category.slug == params.category_slug)
+            from app.modules.category.models import CategoryTranslation
+            if self.resolved_lang_id:
+                self.query = self.query.join(
+                    CategoryTranslation,
+                    (CategoryTranslation.category_id == Category.id) &
+                    (CategoryTranslation.language_id == self.resolved_lang_id)
+                )
+            else:
+                from app.modules.language.models import Language
+                self.query = self.query.join(CategoryTranslation).join(Language)
+                self.query = self.query.where(Language.code == "vi")
+            self.query = self.query.where(CategoryTranslation.slug == params.category_slug)
 
         if params.tag_slug:
-            # Lọc theo slug tag (Many-to-Many)
-            self.query = self.query.where(Article.tags.any(Tag.slug == params.tag_slug))
+            from app.modules.tag.models import TagTranslation
+            if self.resolved_lang_id:
+                self.query = self.query.where(
+                    Article.tags.any(
+                        Tag.translations.any(
+                            (TagTranslation.slug == params.tag_slug) &
+                            (TagTranslation.language_id == self.resolved_lang_id)
+                        )
+                    )
+                )
+            else:
+                from app.modules.language.models import Language
+                self.query = self.query.where(
+                    Article.tags.any(
+                        Tag.translations.any(
+                            (TagTranslation.slug == params.tag_slug) &
+                            (Language.code == "vi")
+                        )
+                    )
+                )
 
         if params.author_username:
             self._safe_join(Article.author, User)
@@ -188,6 +248,9 @@ class ArticleQueryBuilder:
     def sort(self, strategy: SortStrategy, sort_by: str = None, sort_dir: str = "desc"):
         """Sắp xếp động dựa trên Whitelist Mapping và Sort Strategy"""
         sort_column = SORT_COLUMNS.get(sort_by, Article.publish_at)
+        if self.resolved_lang_id and sort_by in ["title", "slug"]:
+            sort_column = getattr(ArticleTranslation, sort_by)
+
         direction = desc if sort_dir.lower() == "desc" else asc
 
         if strategy == SortStrategy.CUSTOM:

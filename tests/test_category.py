@@ -40,6 +40,32 @@ async def cleanup_data(db_session):
     test_article_ids.clear()
 
 
+async def create_test_article(db_session, category_id, title, slug, content, deleted_at=None, status=ArticleStatus.DRAFT, is_draft=True) -> Article:
+    from app.modules.article.models import ArticleTranslation
+    lang_res = await db_session.execute(select(Language.id).where(Language.code == "vi"))
+    lang_id = lang_res.scalar()
+    
+    article = Article(
+        category_id=category_id,
+        deleted_at=deleted_at,
+        status=status,
+        is_draft=is_draft
+    )
+    db_session.add(article)
+    await db_session.flush()
+    
+    translation = ArticleTranslation(
+        article_id=article.id,
+        language_id=lang_id,
+        title=title,
+        slug=slug,
+        content=content
+    )
+    db_session.add(translation)
+    await db_session.flush()
+    return article
+
+
 
 @pytest.mark.asyncio
 async def test_create_category_api(client: AsyncClient, admin_headers: dict, db_session):
@@ -177,13 +203,13 @@ async def test_delete_category_constraint_active_articles(client: AsyncClient, a
     test_category_ids.append(category_id)
 
     # 2. Tạo một bài viết thuộc Category này
-    article = Article(
+    article = await create_test_article(
+        db_session,
+        uuid.UUID(category_id),
         title="Bài viết test xóa category",
         slug="bai-viet-test-xoa-category",
-        content="Nội dung bài viết test",
-        category_id=uuid.UUID(category_id)
+        content="Nội dung bài viết test"
     )
-    db_session.add(article)
     await db_session.commit()
     test_article_ids.append(article.id)
 
@@ -216,14 +242,14 @@ async def test_delete_category_with_soft_deleted_articles(client: AsyncClient, a
     test_category_ids.append(category_id)
 
     # 2. Tạo một bài viết đã bị xóa mềm thuộc Category này
-    article = Article(
+    article = await create_test_article(
+        db_session,
+        uuid.UUID(category_id),
         title="Bài viết bị xóa mềm",
         slug="bai-viet-bi-xoa-mem",
         content="Nội dung bài viết bị xóa mềm",
-        category_id=uuid.UUID(category_id),
         deleted_at=datetime.now(UTC)
     )
-    db_session.add(article)
     await db_session.commit()
     test_article_ids.append(article.id)
 
@@ -253,30 +279,32 @@ async def test_category_article_count_calculation(client: AsyncClient, admin_hea
     test_category_ids.append(category_id)
 
     # 2. Tạo 2 bài viết hoạt động và 1 bài viết bị xóa mềm
-    article_published = Article(
+    article_published = await create_test_article(
+        db_session,
+        uuid.UUID(category_id),
         title="Bài viết đã xuất bản",
         slug="bai-viet-da-xuat-ban",
         content="Content published",
-        category_id=uuid.UUID(category_id),
         status=ArticleStatus.PUBLISHED,
         is_draft=False
     )
-    article_draft = Article(
+    article_draft = await create_test_article(
+        db_session,
+        uuid.UUID(category_id),
         title="Bài viết nháp",
         slug="bai-viet-nhap",
         content="Content draft",
-        category_id=uuid.UUID(category_id),
         status=ArticleStatus.DRAFT,
         is_draft=True
     )
-    article_deleted = Article(
+    article_deleted = await create_test_article(
+        db_session,
+        uuid.UUID(category_id),
         title="Bài viết đã bị xóa mềm",
         slug="bai-viet-da-bi-xoa-mem",
         content="Content deleted",
-        category_id=uuid.UUID(category_id),
         deleted_at=datetime.now(UTC)
     )
-    db_session.add_all([article_published, article_draft, article_deleted])
     await db_session.commit()
     test_article_ids.extend([article_published.id, article_draft.id, article_deleted.id])
 
@@ -323,14 +351,14 @@ async def test_restore_category_api(client: AsyncClient, admin_headers: dict, db
     test_category_ids.append(category_id)
 
     # 2. Tạo một bài viết đã bị xóa mềm thuộc Category này
-    article = Article(
+    article = await create_test_article(
+        db_session,
+        uuid.UUID(category_id),
         title="Bài viết bị xóa mềm khi test restore",
         slug="bai-viet-bi-xoa-mem-khi-test-restore",
         content="Nội dung bài viết",
-        category_id=uuid.UUID(category_id),
         deleted_at=datetime.now(UTC)
     )
-    db_session.add(article)
     await db_session.commit()
     test_article_ids.append(article.id)
 

@@ -1,0 +1,13 @@
+from app.modules.department.schemas.common import (
+    DepartmentCreate,
+    DepartmentUpdate,
+    build_department_resolved,
+)
+from app.modules.department.schemas.admin import (
+    AdminDepartmentResponse,
+    DepartmentPaginationResponse,
+    DepartmentStatsResponse,
+)
+from app.modules.department.schemas.portal import (
+    PortalDepartmentResponse,
+)

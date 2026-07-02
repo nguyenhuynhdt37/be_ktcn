@@ -7,7 +7,13 @@ import redis.asyncio as aioredis
 from app.core.config import settings
 from app.shared.redis import redis_pool
 from app.modules.translation.exceptions import ModelNotReadyException
-from app.modules.translation.utils import get_cache_key, validate_translation_input
+from app.modules.translation.utils import (
+    get_cache_key,
+    validate_translation_input,
+    should_skip_translation,
+    preprocess_text,
+    postprocess_text
+)
 
 # NLLB-200 Language Mapping
 NLLB_LANG_MAP = {
@@ -21,7 +27,20 @@ class TranslationService:
     """
     def __init__(self):
         self.model_name = settings.TRANSLATION_MODEL_NAME
-        self.device = settings.TRANSLATION_DEVICE
+        
+        # Tự động nhận diện thiết bị tốt nhất (CUDA > MPS > CPU) trừ khi ép buộc chạy cpu
+        import torch
+        configured_device = settings.TRANSLATION_DEVICE
+        if configured_device == "cpu":
+            self.device = "cpu"
+        else:
+            if torch.cuda.is_available():
+                self.device = "cuda"
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                self.device = "mps"
+            else:
+                self.device = "cpu"
+
         self._tokenizer = None
         self._model = None
         self._translator = None
@@ -44,7 +63,7 @@ class TranslationService:
         self._model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name, local_files_only=True)
         
         # Chuyển thiết bị
-        if self.device != "cpu" and torch.cuda.is_available():
+        if self.device != "cpu":
             self._model = self._model.to(self.device)
             
         load_duration = time.time() - start_time
@@ -61,7 +80,7 @@ class TranslationService:
         with torch.inference_mode():
             # Dịch thử
             inputs = self._tokenizer("Xin chào", return_tensors="pt")
-            if self.device != "cpu" and torch.cuda.is_available():
+            if self.device != "cpu":
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
             translated_tokens = self._model.generate(
                 **inputs,
@@ -86,7 +105,7 @@ class TranslationService:
         start_time = time.time()
         with torch.inference_mode():
             inputs = self._tokenizer(text, return_tensors="pt")
-            if self.device != "cpu" and torch.cuda.is_available():
+            if self.device != "cpu":
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 
             translated_tokens = self._model.generate(
@@ -115,7 +134,7 @@ class TranslationService:
         start_time = time.time()
         with torch.inference_mode():
             inputs = self._tokenizer(texts, return_tensors="pt", padding=True)
-            if self.device != "cpu" and torch.cuda.is_available():
+            if self.device != "cpu":
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 
             translated_tokens = self._model.generate(
@@ -165,23 +184,32 @@ class TranslationService:
         validate_translation_input(text)
         
         response = {"vi": text}
+        
+        # 0. Kiểm tra xem có nên bỏ qua dịch (ví dụ: URL, Email, Số điện thoại)
+        if should_skip_translation(text):
+            for lang in target_languages:
+                response[lang] = text
+            return response
+
+        # Tiền xử lý (khử ALL CAPS)
+        processed_text, is_all_caps = preprocess_text(text)
         loop = asyncio.get_running_loop()
         
         for lang in target_languages:
-            # 1. Kiểm tra cache
-            cached = await self._get_cache(text, lang)
+            # 1. Kiểm tra cache với text đã tiền xử lý
+            cached = await self._get_cache(processed_text, lang)
             if cached is not None:
-                response[lang] = cached
+                response[lang] = postprocess_text(cached, is_all_caps)
                 continue
                 
             # 2. Chạy model dịch trong ThreadPoolExecutor để tránh block event loop
             translated = await loop.run_in_executor(
-                self._executor, self._translate_single_sync, text, lang
+                self._executor, self._translate_single_sync, processed_text, lang
             )
             
-            # 3. Lưu cache
-            await self._set_cache(text, lang, translated)
-            response[lang] = translated
+            # 3. Lưu cache với text đã tiền xử lý
+            await self._set_cache(processed_text, lang, translated)
+            response[lang] = postprocess_text(translated, is_all_caps)
             
         return response
 
@@ -201,13 +229,24 @@ class TranslationService:
             # Tìm xem text nào chưa có trong cache để dịch theo batch
             pending_texts = []
             pending_indices = []
+            preprocess_info = {}
             
             for idx, text in enumerate(texts):
-                cached = await self._get_cache(text, lang)
+                # 0. Bỏ qua dịch nếu là URL/Email/Số
+                if should_skip_translation(text):
+                    results[idx][lang] = text
+                    continue
+                
+                # Tiền xử lý
+                processed_text, is_all_caps = preprocess_text(text)
+                preprocess_info[idx] = (processed_text, is_all_caps)
+                
+                # 1. Kiểm tra cache
+                cached = await self._get_cache(processed_text, lang)
                 if cached is not None:
-                    results[idx][lang] = cached
+                    results[idx][lang] = postprocess_text(cached, is_all_caps)
                 else:
-                    pending_texts.append(text)
+                    pending_texts.append(processed_text)
                     pending_indices.append(idx)
             
             # Nếu có chuỗi cần dịch bằng model
@@ -219,11 +258,148 @@ class TranslationService:
                 # Lưu cache và map kết quả
                 for idx_in_pending, translated in enumerate(translated_list):
                     original_idx = pending_indices[idx_in_pending]
-                    original_text = pending_texts[idx_in_pending]
+                    processed_text, is_all_caps = preprocess_info[original_idx]
                     
-                    await self._set_cache(original_text, lang, translated)
-                    results[original_idx][lang] = translated
+                    await self._set_cache(processed_text, lang, translated)
+                    results[original_idx][lang] = postprocess_text(translated, is_all_caps)
 
         return results
+
+    async def translate_html(self, html_content: str, target_languages: list[str]) -> dict[str, str]:
+        """
+        API chuyên dụng dịch nội dung HTML (cho CKEditor), giữ nguyên cấu trúc DOM và định dạng.
+        Tự động bóc tách ở cấp độ Block văn bản, sử dụng placeholders bảo toàn thẻ inline (bold, italic, links, span...),
+        dịch batch tối ưu qua Redis cache và NLLB-200, sau đó khôi phục lại cấu trúc.
+        """
+        if not html_content or not html_content.strip():
+            return {lang: html_content for lang in ["vi"] + target_languages}
+
+        from bs4 import BeautifulSoup
+        import re
+        
+        BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "td", "th", "div", "section", "article", "caption", "blockquote"}
+        INLINE_TAGS = {"b", "strong", "i", "em", "u", "span", "a", "code", "sub", "sup", "small"}
+
+        # Khởi tạo kết quả
+        response = {"vi": html_content}
+
+        for lang in target_languages:
+            # Dựng cây DOM
+            soup = BeautifulSoup(html_content, "html.parser")
+            
+            # 1. Thu thập các text blocks độc lập (leaf blocks chứa text trực tiếp)
+            text_blocks = []
+            
+            def collect_text_blocks(element):
+                if not hasattr(element, "name"):
+                    return
+                if element.name in ["script", "style"]:
+                    return
+                    
+                is_leaf_block = False
+                if element.name in BLOCK_TAGS:
+                    has_block_child = any(
+                        child.name in BLOCK_TAGS 
+                        for child in element.find_all(recursive=True) 
+                        if hasattr(child, "name")
+                    )
+                    if not has_block_child:
+                        is_leaf_block = True
+                        
+                if is_leaf_block:
+                    if element.get_text(strip=True):
+                        text_blocks.append(element)
+                else:
+                    for child in element.children:
+                        if hasattr(child, "children"):
+                            collect_text_blocks(child)
+            
+            collect_text_blocks(soup)
+            if not text_blocks and soup.get_text(strip=True):
+                text_blocks = [soup]
+
+            if not text_blocks:
+                response[lang] = html_content
+                continue
+
+            # 2. Xây dựng placeholders cho các thẻ inline trong từng block
+            block_data = [] # List of tuples: (block_element, placeholders_dict, raw_text_with_placeholders)
+            
+            for block in text_blocks:
+                inline_elements = block.find_all(INLINE_TAGS, recursive=True)
+                placeholders = {}
+                
+                # Thay thế từ trong ra ngoài (reversed) để xử lý hoàn hảo tag lồng nhau
+                for idx, element in enumerate(reversed(inline_elements)):
+                    placeholder_idx = len(inline_elements) - 1 - idx
+                    placeholder_open = f" 99910{placeholder_idx} "
+                    placeholder_close = f" 99920{placeholder_idx} "
+                    
+                    placeholders[placeholder_idx] = {
+                        "name": element.name,
+                        "attrs": element.attrs,
+                        "inner_html": element.decode_contents()
+                    }
+                    
+                    new_text = f"{placeholder_open}{element.decode_contents()}{placeholder_close}"
+                    element.replace_with(new_text)
+                
+                # Lấy text thô chứa placeholders
+                raw_text = block.get_text()
+                block_data.append((block, placeholders, raw_text))
+
+            # 3. Gom danh sách text thô để dịch theo batch tối ưu hiệu năng
+            raw_texts = [data[2] for data in block_data]
+            translated_results = await self.translate_batch(raw_texts, [lang])
+
+            # 4. Khôi phục thẻ inline và cập nhật lại cây DOM
+            for idx, (block, placeholders, _) in enumerate(block_data):
+                translated_text = translated_results[idx].get(lang, block.get_text())
+                
+                # Khôi phục các thẻ inline từ ngoài vào trong
+                for p_idx in sorted(placeholders.keys()):
+                    info = placeholders[p_idx]
+                    
+                    # Xây dựng thẻ mở và thẻ đóng gốc
+                    attrs_str = ""
+                    for k, v in info["attrs"].items():
+                        if isinstance(v, list):
+                            v_str = " ".join(v)
+                        else:
+                            v_str = str(v)
+                        attrs_str += f' {k}="{v_str}"'
+                    
+                    tag_open_html = f"<{info['name']}{attrs_str}>"
+                    tag_close_html = f"</{info['name']}>"
+                    
+                    # Khôi phục độc lập thẻ mở và thẻ đóng (giúp chống lỗi xáo trộn cấu trúc)
+                    # Loại bỏ khoảng trắng thừa xung quanh placeholder số nếu có
+                    translated_text = re.sub(
+                        r"\s*99910" + str(p_idx) + r"\s*", 
+                        lambda m: tag_open_html, 
+                        translated_text,
+                        count=1
+                    )
+                    translated_text = re.sub(
+                        r"\s*99920" + str(p_idx) + r"\s*", 
+                        lambda m: tag_close_html, 
+                        translated_text,
+                        count=1
+                    )
+                
+                # Lắp lại HTML đã khôi phục vào block
+                block.clear()
+                parsed_content = BeautifulSoup(translated_text, "html.parser")
+                block.append(parsed_content)
+
+            # Xuất chuỗi HTML hoàn chỉnh đã dịch
+            # decode_contents() giúp loại bỏ thẻ bao ngoài nếu soup là block duy nhất
+            if len(text_blocks) == 1 and text_blocks[0] == soup:
+                response[lang] = soup.decode_contents()
+            else:
+                response[lang] = str(soup)
+
+        return response
+
 
 translation_service = TranslationService()

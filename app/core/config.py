@@ -95,10 +95,15 @@ class Settings(BaseSettings):
 
     # AI Integration
     GEMINI_API_KEY: str = ""
+    AI_PROVIDER: str = "omniroute"
+    AI_BASE_URL: str = "http://localhost:8090"
+    AI_API_KEY: str = "sk-omniroute-secret-key"
+    AI_DEFAULT_MODEL: str = "gemini-2.5-flash"
+    AI_EMBEDDING_MODEL: str = "embedding-model"
 
     # Translation Config (NLLB-200)
-    TRANSLATION_MODEL_NAME: str = "facebook/nllb-200-distilled-600M"
-    TRANSLATION_DEVICE: str = "cpu"
+    TRANSLATION_MODEL_NAME: str = "facebook/nllb-200-distilled-1.3B"
+    TRANSLATION_DEVICE: str = "auto"
     TRANSLATION_CACHE_TTL: int = 86400
     TRANSLATION_MAX_INPUT_LENGTH: int = 1000
     TRANSLATION_MAX_BATCH_SIZE: int = 50

@@ -344,7 +344,8 @@ async def _batch_resolve_articles(db: AsyncSession, target_ids: list[uuid.UUID],
 
 async def _validate_department(db: AsyncSession, target_id: uuid.UUID) -> None:
     """Validate Department tồn tại, chưa bị xóa mềm, và đang hoạt động (is_active=True)."""
-    from app.modules.faculty_staff.models import Department
+    from app.modules.department.models import Department
+    from app.modules.department.service import department_service
 
     query = select(Department).where(Department.id == target_id)
     result = await db.execute(query)
@@ -361,9 +362,10 @@ async def _validate_department(db: AsyncSession, target_id: uuid.UUID) -> None:
         raise BadRequestException(
             message="Bộ môn được liên kết đã bị xóa",
             error_code="TARGET_DEPARTMENT_DELETED",
-            details={"target_id": str(target_id), "name": dept.name},
+            details={"target_id": str(target_id)},
         )
 
+    department_service._apply_translation(dept, lang="vi")
     if not dept.is_active:
         raise BadRequestException(
             message=f"Bộ môn '{dept.name}' đang ở trạng thái ngưng hoạt động. Chỉ cho phép liên kết với bộ môn đang hoạt động.",
@@ -374,7 +376,8 @@ async def _validate_department(db: AsyncSession, target_id: uuid.UUID) -> None:
 
 async def _resolve_department(db: AsyncSession, target_id: uuid.UUID, lang: str = "vi") -> TargetInfo:
     """Resolve thông tin chi tiết của một Department."""
-    from app.modules.faculty_staff.models import Department
+    from app.modules.department.models import Department
+    from app.modules.department.service import department_service
 
     query = select(Department).where(Department.id == target_id, Department.deleted_at == None)
     result = await db.execute(query)
@@ -383,11 +386,11 @@ async def _resolve_department(db: AsyncSession, target_id: uuid.UUID, lang: str 
     if not dept:
         return TargetInfo(id=str(target_id), type="DEPARTMENT", name="[Đã xóa]", status="DELETED")
 
-    name_val = dept.english_name if lang == "en" and dept.english_name else dept.name
+    department_service._apply_translation(dept, lang=lang)
     return TargetInfo(
         id=str(dept.id),
         type="DEPARTMENT",
-        name=name_val,
+        name=dept.name,
         slug=dept.slug,
         status="ACTIVE" if dept.is_active else "INACTIVE",
         path=f"/bo-mon/{dept.slug}",
@@ -396,7 +399,8 @@ async def _resolve_department(db: AsyncSession, target_id: uuid.UUID, lang: str 
 
 async def _batch_resolve_departments(db: AsyncSession, target_ids: list[uuid.UUID], lang: str = "vi") -> dict[uuid.UUID, TargetInfo]:
     """Batch resolve nhiều departments cùng lúc bằng 1 câu IN query."""
-    from app.modules.faculty_staff.models import Department
+    from app.modules.department.models import Department
+    from app.modules.department.service import department_service
 
     if not target_ids:
         return {}
@@ -412,11 +416,11 @@ async def _batch_resolve_departments(db: AsyncSession, target_ids: list[uuid.UUI
             resolved[t_id] = TargetInfo(id=str(t_id), type="DEPARTMENT", name="[Đã xóa]", status="DELETED")
             continue
 
-        name_val = dept.english_name if lang == "en" and dept.english_name else dept.name
+        department_service._apply_translation(dept, lang=lang)
         resolved[t_id] = TargetInfo(
             id=str(dept.id),
             type="DEPARTMENT",
-            name=name_val,
+            name=dept.name,
             slug=dept.slug,
             status="ACTIVE" if dept.is_active else "INACTIVE",
             path=f"/bo-mon/{dept.slug}",

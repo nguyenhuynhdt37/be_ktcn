@@ -45,7 +45,25 @@ async def admin_credentials() -> tuple[str, str]:
             )
             db_session.add(user)
             await db_session.commit()
-    return "admin_api_test", "password"
+            
+    yield "admin_api_test", "password"
+
+    # Teardown: Xóa cứng sạch sẽ
+    async with SessionLocal() as db_session:
+        existing = await db_session.execute(
+            select(User).where(User.username == "admin_api_test")
+        )
+        user = existing.scalar_one_or_none()
+        if user:
+            from sqlalchemy import delete
+            from app.modules.auth.models import LoginHistory, RefreshToken
+            from app.modules.audit.models import AuditLog
+            
+            await db_session.execute(delete(LoginHistory).where(LoginHistory.user_id == user.id))
+            await db_session.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+            await db_session.execute(delete(AuditLog).where(AuditLog.actor_id == user.id))
+            await db_session.delete(user)
+            await db_session.commit()
 
 
 @pytest.fixture(scope="function")

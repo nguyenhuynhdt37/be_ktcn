@@ -25,13 +25,18 @@ def slugify(text: str) -> str:
     text = re.sub(r'[\s-]+', '-', text)
     return text.strip('-')
 
+from loguru import logger
 from sqlalchemy import select, func, desc, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload, load_only
 
 from app.core.exceptions import BadRequestException, NotFoundException, ForbiddenException
-from app.modules.article.models import Article, ArticleStatus
-from app.modules.article.schemas import BulkActionEnum, BulkActionResponse, ArticleStatsResponse, ArticleAttributesUpdateRequest, ArticleCreateRequest, SlugCheckResponse, ArticleDetailResponse, ArticleDraftsCountResponse, ArticleUpdateRequest
+from app.modules.article.models import Article, ArticleStatus, ArticleTranslation
+from app.modules.article.schemas import (
+    BulkActionEnum, BulkActionResponse, ArticleStatsResponse, 
+    ArticleAttributesUpdateRequest, ArticleCreateRequest, SlugCheckResponse, 
+    ArticleDraftsCountResponse, ArticleUpdateRequest
+)
 from app.modules.auth.models import User
 from app.modules.category.models import Category
 from app.modules.tag.models import Tag
@@ -42,6 +47,85 @@ class ArticleService:
     """
     Business logic phục vụ cho module Articles.
     """
+
+    def _apply_translation(self, article: Article, lang: str = "vi") -> Article:
+        """
+        Đọc bản dịch của ngôn ngữ chỉ định (hoặc fallback tiếng Việt) từ translations
+        và gán vào các thuộc tính phẳng của Article. Nếu không có bản dịch nào, fallback về cột legacy.
+        """
+        if not article:
+            return article
+        
+        # 1. Tìm bản dịch của ngôn ngữ đích
+        target_translation = None
+        for t in getattr(article, "translations", []):
+            if t.language and t.language.code == lang:
+                target_translation = t
+                break
+                
+        # 2. Nếu không tìm thấy hoặc title rỗng, fallback về tiếng Việt ("vi")
+        if (not target_translation or not target_translation.title) and lang != "vi":
+            for t in getattr(article, "translations", []):
+                if t.language and t.language.code == "vi":
+                    target_translation = t
+                    break
+                    
+        # 3. Gán thuộc tính hoặc fallback về mặc định
+        if target_translation:
+            article.title = target_translation.title
+            article.slug = target_translation.slug
+            article.excerpt = target_translation.excerpt
+            article.content = target_translation.content
+            article.seo_title = target_translation.seo_title
+            article.seo_description = target_translation.seo_description
+            article.canonical_url = target_translation.canonical_url
+            article.robots = target_translation.robots
+            article.og_title = target_translation.og_title
+            article.og_description = target_translation.og_description
+            article.og_image = target_translation.og_image
+        else:
+            article.title = "Chưa dịch"
+            article.slug = f"chua-dich-{article.id}"
+            article.excerpt = None
+            article.content = ""
+            article.seo_title = None
+            article.seo_description = None
+            article.canonical_url = None
+            article.robots = "index, follow"
+            article.og_title = None
+            article.og_description = None
+            article.og_image = None
+            
+        return article
+
+    async def _resolve_unique_slug(
+        self, db: AsyncSession, base_text: str, language_id: uuid.UUID, exclude_article_id: Optional[uuid.UUID] = None
+    ) -> str:
+        """Tính toán slug không trùng lặp trong bảng ArticleTranslation theo từng ngôn ngữ."""
+        base_slug = slugify(base_text)
+        if not base_slug:
+            base_slug = "bai-viet"
+            
+        slug_candidate = base_slug
+        
+        from app.modules.article.models import ArticleTranslation
+        query = select(ArticleTranslation.slug).where(
+            ArticleTranslation.language_id == language_id,
+            ArticleTranslation.slug == slug_candidate
+        )
+        if exclude_article_id:
+            query = query.where(ArticleTranslation.article_id != exclude_article_id)
+            
+        res = await db.execute(query)
+        exists = res.scalar_one_or_none()
+        
+        if exists:
+            # Sinh slug mới bằng cách thêm uuid rút gọn 8 ký tự
+            import uuid as py_uuid
+            suffix = str(py_uuid.uuid4())[:8]
+            slug_candidate = f"{base_slug}-{suffix}"
+            
+        return slug_candidate
 
     async def list_articles(
         self,
@@ -64,6 +148,7 @@ class ArticleService:
         deleted: bool = False,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
+        lang: str = "vi",
     ) -> Tuple[list[Article], int]:
         """
         Query danh sách bài viết từ database với phân trang, lọc và sắp xếp động tối ưu (Admin CMS).
@@ -116,6 +201,14 @@ class ArticleService:
         
         # Thực thi
         items = await builder.execute()
+        for item in items:
+            self._apply_translation(item, lang=lang)
+            if item.category:
+                from app.modules.category.service import category_service
+                category_service._apply_translation(item.category, lang=lang)
+            for tag in item.tags:
+                from app.modules.tag.service import tag_service
+                tag_service._apply_translation(tag, lang=lang)
         return items, total
 
     async def archive_article(
@@ -130,14 +223,23 @@ class ArticleService:
         Không cho phép thực hiện đối với các trạng thái khác (như DRAFT, SCHEDULED).
         """
         # Query bài viết kèm các quan hệ cần hiển thị ở response
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+        from app.modules.article.models import ArticleTranslation
+
         stmt = (
             select(Article)
             .where(Article.id == article_id, Article.deleted_at == None)
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
         )
         result = await db.execute(stmt)
@@ -163,13 +265,18 @@ class ArticleService:
 
         # Ghi nhận audit log
         from app.modules.audit.service import log_action
+        log_title = "Chưa dịch"
+        for t in getattr(article, "translations", []):
+            if t.language and t.language.code == "vi":
+                log_title = t.title
+                break
         await log_action(
             db,
             current_user,
             "ARTICLE_ARCHIVED",
             "article",
             article.id,
-            {"title": article.title, "previous_status": "PUBLISHED"}
+            {"title": log_title, "previous_status": "PUBLISHED"}
         )
 
         await db.commit()
@@ -187,14 +294,23 @@ class ArticleService:
         Không cho phép thực hiện đối với các trạng thái khác (như DRAFT, SCHEDULED).
         """
         # Query bài viết kèm các quan hệ cần hiển thị ở response
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+        from app.modules.article.models import ArticleTranslation
+
         stmt = (
             select(Article)
             .where(Article.id == article_id, Article.deleted_at == None)
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
         )
         result = await db.execute(stmt)
@@ -221,13 +337,18 @@ class ArticleService:
 
         # Ghi nhận audit log
         from app.modules.audit.service import log_action
+        log_title = "Chưa dịch"
+        for t in getattr(article, "translations", []):
+            if t.language and t.language.code == "vi":
+                log_title = t.title
+                break
         await log_action(
             db,
             current_user,
             "ARTICLE_PUBLISHED",
             "article",
             article.id,
-            {"title": article.title, "previous_status": "ARCHIVED"}
+            {"title": log_title, "previous_status": "ARCHIVED"}
         )
 
         await db.commit()
@@ -400,14 +521,23 @@ class ArticleService:
         """
         Cập nhật nhanh các thuộc tính đặc biệt (is_featured, is_pinned) của bài viết.
         """
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+        from app.modules.article.models import ArticleTranslation
+
         stmt = (
             select(Article)
             .where(Article.id == article_id, Article.deleted_at == None)
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
         )
         result = await db.execute(stmt)
@@ -431,13 +561,18 @@ class ArticleService:
             
             # Ghi nhận audit log
             from app.modules.audit.service import log_action
+            log_title = "Chưa dịch"
+            for t in getattr(article, "translations", []):
+                if t.language and t.language.code == "vi":
+                    log_title = t.title
+                    break
             await log_action(
                 db,
                 current_user,
                 "ARTICLE_UPDATED",
                 "article",
                 article.id,
-                {"title": article.title, "attribute_changes": changes}
+                {"title": log_title, "attribute_changes": changes}
             )
             await db.commit()
             
@@ -450,7 +585,7 @@ class ArticleService:
         current_user: Any
     ) -> Article:
         """
-        Tạo bài viết mới.
+        Tạo bài viết mới hỗ trợ đa ngôn ngữ.
         """
         # Tự động trích xuất category_id từ object category nếu category_id là None
         category_id = payload.category_id
@@ -471,10 +606,13 @@ class ArticleService:
                         pass
 
         # 1. Kiểm tra Category & Content theo trạng thái xuất bản
+        vi_trans = payload.translations.get("vi")
+        ref_trans = vi_trans or (list(payload.translations.values())[0] if payload.translations else None)
+
         if not payload.is_draft:
             if not category_id:
                 raise BadRequestException(message="Danh mục là bắt buộc khi xuất bản hoặc lên lịch bài viết.")
-            if not payload.content or not payload.content.strip():
+            if not ref_trans or not ref_trans.content or not ref_trans.content.strip():
                 raise BadRequestException(message="Nội dung bài viết không được để trống khi xuất bản hoặc lên lịch.")
 
         if category_id:
@@ -507,31 +645,16 @@ class ArticleService:
         elif payload.expire_at and not payload.publish_at and payload.expire_at <= now:
             raise BadRequestException(message="Thời điểm hết hạn hiển thị (expire_at) phải ở trong tương lai.")
 
-        # 5. Xử lý sinh Slug & tránh trùng lặp slug
-        base_slug = payload.slug.strip() if (payload.slug and payload.slug.strip()) else slugify(payload.title)
-        if not base_slug:
-            base_slug = "bai-viet"
-            
-        slug = base_slug
-        counter = 1
-        while True:
-            dup_stmt = select(Article.id).where(Article.slug == slug, Article.deleted_at == None)
-            dup_res = await db.execute(dup_stmt)
-            if not dup_res.scalars().first():
-                break
-            slug = f"{base_slug}-{counter}"
-            counter += 1
-
-        # 6. Tự động tính số từ & thời gian đọc
+        # 5. Tự động tính số từ & thời gian đọc
         word_count = 0
         reading_time = 0
-        if payload.content:
-            text_content = re.sub(r'<[^>]+>', ' ', payload.content)
+        if ref_trans and ref_trans.content:
+            text_content = re.sub(r'<[^>]+>', ' ', ref_trans.content)
             words = text_content.split()
             word_count = len(words)
             reading_time = max(1, math.ceil(word_count / 200))
 
-        # 7. Khởi tạo đối tượng Article
+        # 6. Khởi tạo đối tượng Article
         published_at = None
         if payload.status == ArticleStatus.PUBLISHED:
             published_at = payload.publish_at or now
@@ -539,10 +662,6 @@ class ArticleService:
         article = Article(
             category_id=category_id,
             author_id=current_user.id,
-            title=payload.title,
-            slug=slug,
-            excerpt=payload.excerpt,
-            content=payload.content or "",
             thumbnail_object_key=payload.thumbnail_object_key,
             cover_object_key=payload.cover_object_key,
             status=payload.status,
@@ -554,17 +673,10 @@ class ArticleService:
             publish_at=payload.publish_at or (published_at if payload.status == ArticleStatus.PUBLISHED else None),
             published_at=published_at,
             expire_at=payload.expire_at,
-            
-            # SEO fields
-            seo_title=payload.seo_title,
-            seo_description=payload.seo_description,
-            canonical_url=payload.canonical_url,
-            robots=payload.robots,
-            og_title=payload.og_title,
-            og_description=payload.og_description,
-            og_image=payload.og_image
         )
-        
+
+
+
         # Gán tags và tăng usage_count
         if tags_list:
             article.tags = tags_list
@@ -573,30 +685,77 @@ class ArticleService:
                 db.add(t)
 
         db.add(article)
-        await db.flush()  # Để lấy ID bài viết phục vụ ghi Audit Log
+        await db.flush()  # Để lấy ID bài viết
+
+        # 7. Ghi translations
+        from app.modules.language.models import Language
+        from app.modules.article.models import ArticleTranslation
+        for lang_code, trans_item in payload.translations.items():
+            if trans_item is None:
+                continue
+            lang_query = select(Language.id).where(Language.code == lang_code)
+            lang_res = await db.execute(lang_query)
+            lang_id = lang_res.scalar()
+            if not lang_id:
+                continue
+                
+            trans_slug = trans_item.slug.strip() if trans_item.slug else slugify(trans_item.title)
+            trans_slug = await self._resolve_unique_slug(db, trans_slug, lang_id)
+            
+            translation = ArticleTranslation(
+                article_id=article.id,
+                language_id=lang_id,
+                title=trans_item.title,
+                slug=trans_slug,
+                excerpt=trans_item.excerpt,
+                content=trans_item.content,
+                seo_title=trans_item.seo_title,
+                seo_description=trans_item.seo_description,
+                canonical_url=trans_item.canonical_url,
+                robots=trans_item.robots,
+                og_title=trans_item.og_title,
+                og_description=trans_item.og_description,
+                og_image=trans_item.og_image
+            )
+            db.add(translation)
+            
+        await db.flush()
 
         # 8. Ghi nhận Audit Log
         from app.modules.audit.service import log_action
+        log_title = "Chưa dịch"
+        vi_trans = payload.translations.get("vi")
+        ref_trans = vi_trans or (list(payload.translations.values())[0] if payload.translations else None)
+        if ref_trans:
+            log_title = ref_trans.title
         await log_action(
             db,
             current_user,
             "ARTICLE_CREATED",
             "article",
             article.id,
-            {"title": article.title, "status": article.status.value}
+            {"title": log_title, "status": article.status.value}
         )
         
         await db.commit()
+        db.expire(article, ["translations", "category", "tags"])
 
         # Load lại đầy đủ quan hệ để trả về đúng DTO
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
         stmt = (
             select(Article)
             .where(Article.id == article.id)
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
         )
         result = await db.execute(stmt)
@@ -612,8 +771,16 @@ class ArticleService:
         """
         cleaned_slug = slugify(slug.strip()) if slug.strip() else "bai-viet"
         
-        # Kiểm tra sự tồn tại trong DB
-        stmt = select(Article.id).where(Article.slug == cleaned_slug, Article.deleted_at == None)
+        # Kiểm tra sự tồn tại trong DB (trên các bài viết chưa bị xóa)
+        from app.modules.article.models import ArticleTranslation
+        stmt = (
+            select(ArticleTranslation.id)
+            .join(Article, Article.id == ArticleTranslation.article_id)
+            .where(
+                ArticleTranslation.slug == cleaned_slug,
+                Article.deleted_at == None
+            )
+        )
         res = await db.execute(stmt)
         exists = res.scalars().first() is not None
         
@@ -625,7 +792,14 @@ class ArticleService:
         counter = 1
         while True:
             suggested_slug = f"{cleaned_slug}-{counter}"
-            dup_stmt = select(Article.id).where(Article.slug == suggested_slug, Article.deleted_at == None)
+            dup_stmt = (
+                select(ArticleTranslation.id)
+                .join(Article, Article.id == ArticleTranslation.article_id)
+                .where(
+                    ArticleTranslation.slug == suggested_slug,
+                    Article.deleted_at == None
+                )
+            )
             dup_res = await db.execute(dup_stmt)
             if not dup_res.scalars().first():
                 break
@@ -644,6 +818,9 @@ class ArticleService:
         """
         Lấy danh sách các bài viết nháp (DRAFT) của chính tác giả đang đăng nhập.
         """
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+        
         offset = (page - 1) * page_size
         
         # Query items
@@ -655,10 +832,15 @@ class ArticleService:
                 Article.deleted_at == None
             )
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
             .order_by(Article.created_at.desc())
             .offset(offset)
@@ -700,19 +882,29 @@ class ArticleService:
         db: AsyncSession,
         *,
         article_id: uuid.UUID,
-        current_user: Any
+        current_user: Any,
+        lang: str = "vi"
     ) -> Article:
         """
         Lấy thông tin chi tiết đầy đủ của một bài viết (áp dụng bảo mật nháp).
         """
+        from app.modules.article.models import ArticleTranslation
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+
         stmt = (
             select(Article)
             .where(Article.id == article_id, Article.deleted_at == None)
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
         )
         result = await db.execute(stmt)
@@ -725,6 +917,15 @@ class ArticleService:
         if article.is_draft and article.author_id != current_user.id:
             raise ForbiddenException(message="Quyền truy cập bị từ chối. Bạn không được quyền xem bản nháp của tác giả khác.")
 
+        # Apply translation phẳng
+        self._apply_translation(article, lang=lang)
+        if article.category:
+            from app.modules.category.service import category_service
+            category_service._apply_translation(article.category, lang=lang)
+        for tag in article.tags:
+            from app.modules.tag.service import tag_service
+            tag_service._apply_translation(tag, lang=lang)
+
         return article
 
     async def update_article(
@@ -736,17 +937,26 @@ class ArticleService:
         current_user: Any,
     ) -> Article:
         """
-        Cập nhật toàn bộ bài viết (bao gồm cả trạng thái nháp, danh mục, tags, SEO...).
+        Cập nhật toàn bộ bài viết (bao gồm cả trạng thái nháp, danh mục, tags, và các bản dịch).
         """
-        # 1. Tìm bài viết kèm theo tags, category, author
+        # 1. Tìm bài viết kèm theo tags, category, author, translations
+        from app.modules.article.models import ArticleTranslation
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+        
         stmt = (
             select(Article)
             .where(Article.id == article_id, Article.deleted_at == None)
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color)
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
         )
         result = await db.execute(stmt)
@@ -755,8 +965,7 @@ class ArticleService:
         if not article:
             raise NotFoundException(message="Không tìm thấy bài viết hoặc bài viết đã bị xóa.")
 
-        # 2. Phân quyền chỉnh sửa (Edit Security):
-        # Chỉ chủ sở hữu bài viết (tác giả) mới được chỉnh sửa bài viết của mình.
+        # 2. Phân quyền chỉnh sửa (Edit Security)
         if article.author_id != current_user.id:
             raise ForbiddenException(message="Bạn không có quyền chỉnh sửa bài viết của tác giả khác.")
 
@@ -783,12 +992,22 @@ class ArticleService:
         target_is_draft = payload.is_draft if payload.is_draft is not None else article.is_draft
         target_status = payload.status if payload.status is not None else article.status
         target_category_id = category_id if category_id is not None else article.category_id
-        target_content = payload.content if payload.content is not None else article.content
+
+        # Tìm bản dịch tiếng Việt để validate content
+        vi_trans_item = None
+        if payload.translations:
+            vi_trans_item = payload.translations.get("vi")
+        if not vi_trans_item:
+            # Fallback tìm bản dịch vi đã lưu trước đó
+            for t in article.translations:
+                if t.language and t.language.code == "vi":
+                    vi_trans_item = t
+                    break
 
         if not target_is_draft:
             if not target_category_id:
                 raise BadRequestException(message="Danh mục là bắt buộc khi xuất bản hoặc lên lịch bài viết.")
-            if not target_content or not target_content.strip():
+            if not vi_trans_item or not vi_trans_item.content or not vi_trans_item.content.strip():
                 raise BadRequestException(message="Nội dung bài viết không được để trống khi xuất bản hoặc lên lịch.")
 
         if category_id is not None:
@@ -823,73 +1042,7 @@ class ArticleService:
             if target_publish_at <= now:
                 raise BadRequestException(message="Thời gian lên lịch xuất bản (publish_at) phải ở trong tương lai.")
 
-        # 6. Xử lý logic sinh slug (nếu slug bị thay đổi so với slug cũ)
-        slug = article.slug
-        if payload.slug and payload.slug.strip() != article.slug:
-            slug = slugify(payload.slug.strip())
-            # Kiểm tra trùng lặp slug với bài viết khác
-            dup_stmt = select(Article.id).where(
-                Article.slug == slug, 
-                Article.id != article.id, 
-                Article.deleted_at == None
-            )
-            dup_res = await db.execute(dup_stmt)
-            if dup_res.scalars().first():
-                # Nếu bị trùng, tự động sinh hậu tố số
-                counter = 1
-                base_slug = slug
-                while True:
-                    slug = f"{base_slug}-{counter}"
-                    dup_check = select(Article.id).where(
-                        Article.slug == slug,
-                        Article.id != article.id,
-                        Article.deleted_at == None
-                    )
-                    dup_check_res = await db.execute(dup_check)
-                    if not dup_check_res.scalars().first():
-                        break
-                    counter += 1
-        elif payload.title and payload.title.strip() != article.title:
-            # Nếu title đổi nhưng slug không truyền -> tự động sinh slug mới
-            slug = slugify(payload.title.strip())
-            dup_stmt = select(Article.id).where(
-                Article.slug == slug,
-                Article.id != article.id,
-                Article.deleted_at == None
-            )
-            dup_res = await db.execute(dup_stmt)
-            if dup_res.scalars().first():
-                counter = 1
-                base_slug = slug
-                while True:
-                    slug = f"{base_slug}-{counter}"
-                    dup_check = select(Article.id).where(
-                        Article.slug == slug,
-                        Article.id != article.id,
-                        Article.deleted_at == None
-                    )
-                    dup_check_res = await db.execute(dup_check)
-                    if not dup_check_res.scalars().first():
-                        break
-                    counter += 1
-
-        # 7. Tính toán số từ và thời gian đọc từ content mới
-        if payload.content is not None:
-            content_html = payload.content
-            text_content = re.sub(r'<[^>]+>', ' ', content_html)
-            words = text_content.split()
-            word_count = len(words)
-            reading_time = max(1, math.ceil(word_count / 200))
-            article.content = content_html
-            article.word_count = word_count
-            article.reading_time = reading_time
-
-        # 8. Cập nhật các trường
-        if payload.title is not None:
-            article.title = payload.title
-        article.slug = slug
-        if payload.excerpt is not None:
-            article.excerpt = payload.excerpt
+        # 6. Cập nhật các trường phi ngôn ngữ
         if payload.status is not None:
             article.status = payload.status
         if payload.is_draft is not None:
@@ -918,23 +1071,66 @@ class ArticleService:
             article.expire_at = payload.expire_at
         article.last_edited_at = now
 
-        # SEO
-        if payload.seo_title is not None:
-            article.seo_title = payload.seo_title
-        if payload.seo_description is not None:
-            article.seo_description = payload.seo_description
-        if payload.canonical_url is not None:
-            article.canonical_url = payload.canonical_url
-        if payload.robots is not None:
-            article.robots = payload.robots
-        if payload.og_title is not None:
-            article.og_title = payload.og_title
-        if payload.og_description is not None:
-            article.og_description = payload.og_description
-        if payload.og_image is not None:
-            article.og_image = payload.og_image
+        # 7. Cập nhật các bản dịch trong ArticleTranslation
+        from app.modules.language.models import Language
+        if payload.translations is not None:
+            for lang_code, trans_item in payload.translations.items():
+                if trans_item is None:
+                    continue
+                lang_query = select(Language.id).where(Language.code == lang_code)
+                lang_res = await db.execute(lang_query)
+                lang_id = lang_res.scalar()
+                if not lang_id:
+                    continue
 
-        # 9. Cập nhật Tags và usage_count (chỉ thực hiện nếu tag_ids được truyền lên)
+                stmt_trans = select(ArticleTranslation).where(
+                    ArticleTranslation.article_id == article_id,
+                    ArticleTranslation.language_id == lang_id
+                )
+                trans_res = await db.execute(stmt_trans)
+                translation = trans_res.scalar_one_or_none()
+
+                trans_slug = trans_item.slug.strip() if trans_item.slug else slugify(trans_item.title)
+                trans_slug = await self._resolve_unique_slug(db, trans_slug, lang_id, exclude_article_id=article_id)
+
+                if translation:
+                    translation.title = trans_item.title
+                    translation.slug = trans_slug
+                    translation.excerpt = trans_item.excerpt
+                    translation.content = trans_item.content
+                    translation.seo_title = trans_item.seo_title
+                    translation.seo_description = trans_item.seo_description
+                    translation.canonical_url = trans_item.canonical_url
+                    translation.robots = trans_item.robots
+                    translation.og_title = trans_item.og_title
+                    translation.og_description = trans_item.og_description
+                    translation.og_image = trans_item.og_image
+                else:
+                    translation = ArticleTranslation(
+                        article_id=article_id,
+                        language_id=lang_id,
+                        title=trans_item.title,
+                        slug=trans_slug,
+                        excerpt=trans_item.excerpt,
+                        content=trans_item.content,
+                        seo_title=trans_item.seo_title,
+                        seo_description=trans_item.seo_description,
+                        canonical_url=trans_item.canonical_url,
+                        robots=trans_item.robots,
+                        og_title=trans_item.og_title,
+                        og_description=trans_item.og_description,
+                        og_image=trans_item.og_image
+                    )
+                db.add(translation)
+
+                # Tính toán lại word_count & reading_time nếu là vi
+                if lang_code == "vi" and trans_item.content:
+                    text_content = re.sub(r'<[^>]+>', ' ', trans_item.content)
+                    words = text_content.split()
+                    article.word_count = len(words)
+                    article.reading_time = max(1, math.ceil(article.word_count / 200))
+
+        # 8. Cập nhật Tags và usage_count (chỉ thực hiện nếu tag_ids được truyền lên)
         if tag_ids is not None:
             # Lấy danh sách tags cũ
             old_tags = list(article.tags)
@@ -959,20 +1155,44 @@ class ArticleService:
 
         db.add(article)
         await db.commit()
-        await db.refresh(article)
+        db.expire(article, ["translations", "category", "tags"])
 
-        # 10. Ghi nhận audit log
+        # Load lại đầy đủ quan hệ để trả về đúng DTO
+        stmt_reload = (
+            select(Article)
+            .where(Article.id == article.id)
+            .options(
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
+                joinedload(Article.author).joinedload(User.avatar),
+                joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
+            )
+        )
+        result_reload = await db.execute(stmt_reload)
+        article_reloaded = result_reload.scalars().first()
+
+        # 9. Ghi nhận audit log
         from app.modules.audit.service import log_action
+        log_title = "Chưa dịch"
+        for t in getattr(article_reloaded, "translations", []):
+            if t.language and t.language.code == "vi":
+                log_title = t.title
+                break
         await log_action(
             db,
             current_user,
             "ARTICLE_UPDATED",
             "article",
-            article.id,
-            {"title": article.title, "status": article.status.value, "is_draft": article.is_draft}
+            article_reloaded.id,
+            {"title": log_title, "status": article_reloaded.status.value, "is_draft": article_reloaded.is_draft}
         )
 
-        return article
+        return article_reloaded
 
     async def list_articles_portal(
         self,
@@ -1081,56 +1301,44 @@ class ArticleService:
         self,
         db: AsyncSession,
         slug: str,
+        lang: str = "vi",
     ) -> Article:
         """
         Lấy chi tiết một bài viết công khai theo slug cho Portal FE Client.
         Tự động tăng view_count của bài viết lên 1.
-        Truy vấn tối ưu, nạp trước (avoid N+1) đầy đủ quan hệ và SEO metadata.
         """
         now = datetime.now(timezone.utc)
+        from app.modules.language.models import Language
+        from app.modules.article.models import ArticleTranslation
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+        
+        lang_res = await db.execute(select(Language.id).where(Language.code == lang))
+        lang_id = lang_res.scalar()
+        if not lang_id:
+            lang_res = await db.execute(select(Language.id).where(Language.code == "vi"))
+            lang_id = lang_res.scalar()
 
-        # 1. Câu query lấy chi tiết bài viết (Eager loading tối ưu)
+        # Câu query lấy chi tiết bài viết (Eager loading tối ưu)
         stmt = (
             select(Article)
+            .join(ArticleTranslation, (ArticleTranslation.article_id == Article.id) & (ArticleTranslation.language_id == lang_id), isouter=True)
             .where(
-                Article.slug == slug,
+                ArticleTranslation.slug == slug,
                 Article.status == ArticleStatus.PUBLISHED,
                 Article.deleted_at == None,
                 Article.publish_at <= now
             )
             .options(
-                joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
                 joinedload(Article.author).joinedload(User.avatar),
                 joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-                selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color),
-                load_only(
-                    Article.id,
-                    Article.title,
-                    Article.slug,
-                    Article.excerpt,
-                    Article.content,
-                    Article.thumbnail_object_key,
-                    Article.cover_object_key,
-                    Article.status,
-                    Article.is_featured,
-                    Article.is_pinned,
-                    Article.is_draft,
-                    Article.view_count,
-                    Article.word_count,
-                    Article.reading_time,
-                    Article.created_at,
-                    Article.updated_at,
-                    Article.publish_at,
-                    Article.published_at,
-                    # SEO & OpenGraph fields
-                    Article.seo_title,
-                    Article.seo_description,
-                    Article.canonical_url,
-                    Article.robots,
-                    Article.og_title,
-                    Article.og_description,
-                    Article.og_image,
-                )
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
             )
         )
         
@@ -1142,8 +1350,16 @@ class ArticleService:
         # 2. Tăng view_count tự động
         article.view_count += 1
         db.add(article)
-        await db.commit()
-        await db.refresh(article)
+        await db.flush()
+
+        # Apply translation phẳng
+        self._apply_translation(article, lang=lang)
+        if article.category:
+            from app.modules.category.service import category_service
+            category_service._apply_translation(article.category, lang=lang)
+        for tag in article.tags:
+            from app.modules.tag.service import tag_service
+            tag_service._apply_translation(tag, lang=lang)
 
         return article
 
@@ -1164,6 +1380,7 @@ class ArticleService:
         published_to: Optional[datetime] = None,
         sort_by: str = "publish_at",
         sort_dir: str = "desc",
+        lang: str = "vi",
     ) -> Tuple[list[Article], int]:
         """
         Query danh sách tất cả các bài viết công khai cho Portal FE Client.
@@ -1171,6 +1388,17 @@ class ArticleService:
         """
         builder = ArticleQueryBuilder(db)
         
+        # Lấy language_id cho resolved_translation
+        from app.modules.language.models import Language
+        lang_res = await db.execute(select(Language.id).where(Language.code == lang))
+        lang_id = lang_res.scalar()
+        if not lang_id:
+            lang_res = await db.execute(select(Language.id).where(Language.code == "vi"))
+            lang_id = lang_res.scalar()
+
+        if lang_id:
+            builder.resolve_translation(lang_id)
+
         # Áp dụng Portal scope và eager load quan hệ
         builder.public_scope()
         builder.with_portal_relations()
@@ -1217,7 +1445,112 @@ class ArticleService:
         
         # Thực thi
         items = await builder.execute()
+
+        # Apply translations phẳng cho kết quả đầu ra
+        for item in items:
+            self._apply_translation(item, lang=lang)
+            if item.category:
+                from app.modules.category.service import category_service
+                category_service._apply_translation(item.category, lang=lang)
+            for tag in item.tags:
+                from app.modules.tag.service import tag_service
+                tag_service._apply_translation(tag, lang=lang)
+
         return items, total
+    async def delete_article(
+        self,
+        db: AsyncSession,
+        *,
+        article_id: uuid.UUID,
+        current_user: Any
+    ) -> None:
+        """
+        Xóa mềm bài viết bằng cách gán deleted_at.
+        """
+        article = await self.get_article_detail(db, article_id=article_id, current_user=current_user)
+        
+        article.deleted_at = datetime.now(timezone.utc)
+        db.add(article)
+        await db.flush()
+
+        # Ghi nhận audit log
+        from app.modules.audit.service import log_action
+        log_title = "Chưa dịch"
+        for t in getattr(article, "translations", []):
+            if t.language and t.language.code == "vi":
+                log_title = t.title
+                break
+        await log_action(
+            db,
+            current_user,
+            "ARTICLE_DELETED",
+            "article",
+            article.id,
+            {"title": log_title}
+        )
+        await db.commit()
+        logger.info(f"Soft deleted Article: id={article_id} by user {current_user.id}")
+    async def restore_article(
+        self,
+        db: AsyncSession,
+        *,
+        article_id: uuid.UUID,
+        current_user: Any
+    ) -> Article:
+        """
+        Khôi phục bài viết đã bị xóa mềm (deleted_at != None).
+        """
+        from app.modules.category.models import CategoryTranslation
+        from app.modules.tag.models import TagTranslation
+        from app.modules.article.models import ArticleTranslation
+
+        # Query cả bài viết đã xóa (không lọc deleted_at == None)
+        stmt = (
+            select(Article)
+            .where(Article.id == article_id)
+            .options(
+                joinedload(Article.category).options(
+                    selectinload(Category.translations).selectinload(CategoryTranslation.language)
+                ),
+                joinedload(Article.author).joinedload(User.avatar),
+                joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
+                selectinload(Article.tags).options(
+                    selectinload(Tag.translations).selectinload(TagTranslation.language)
+                ),
+                selectinload(Article.translations).selectinload(ArticleTranslation.language)
+            )
+        )
+        result = await db.execute(stmt)
+        article = result.scalars().first()
+        
+        if not article:
+            raise NotFoundException(message="Không tìm thấy bài viết.")
+
+        if article.deleted_at is not None:
+            article.deleted_at = None
+            article.last_edited_at = datetime.now(timezone.utc)
+            db.add(article)
+            await db.flush()
+
+            # Ghi nhận audit log
+            from app.modules.audit.service import log_action
+            log_title = "Chưa dịch"
+            for t in getattr(article, "translations", []):
+                if t.language and t.language.code == "vi":
+                    log_title = t.title
+                    break
+            await log_action(
+                db,
+                current_user,
+                "ARTICLE_RESTORED",
+                "article",
+                article.id,
+                {"title": log_title}
+            )
+            await db.commit()
+            logger.info(f"Restored Article: id={article_id} by user {current_user.id}")
+
+        return article
 
 
 article_service = ArticleService()

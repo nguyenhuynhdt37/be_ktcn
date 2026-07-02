@@ -48,12 +48,12 @@ async def test_stats_endpoints():
         # TEST DEPARTMENTS STATS
         # ----------------------------------------------------
         logger.info("🏢 2. Gọi API Thống kê Bộ môn (Departments Stats)")
-        dept_stats_res = await ac.get("/api/v1/departments/stats", headers=headers)
+        dept_stats_res = await ac.get("/api/v1/admin/departments/stats", headers=headers)
         assert dept_stats_res.status_code == 200, f"Lỗi departments stats: {dept_stats_res.text}"
         dept_data = dept_stats_res.json()
         
         # Verify structure
-        for field in ["total", "active", "inactive", "total_staff"]:
+        for field in ["total", "active", "inactive"]:
             assert field in dept_data, f"Thiếu trường '{field}' trong response"
             assert isinstance(dept_data[field], int) and dept_data[field] >= 0, f"Trường '{field}' không phải số nguyên không âm"
         
@@ -63,12 +63,12 @@ async def test_stats_endpoints():
         # TEST POSITIONS STATS
         # ----------------------------------------------------
         logger.info("🎖️ 3. Gọi API Thống kê Chức vụ (Positions Stats)")
-        pos_stats_res = await ac.get("/api/v1/positions/stats", headers=headers)
+        pos_stats_res = await ac.get("/api/v1/admin/positions/stats", headers=headers)
         assert pos_stats_res.status_code == 200, f"Lỗi positions stats: {pos_stats_res.text}"
         pos_data = pos_stats_res.json()
         
         # Verify structure
-        for field in ["total", "active", "inactive", "total_staff"]:
+        for field in ["total", "active", "inactive"]:
             assert field in pos_data, f"Thiếu trường '{field}' trong response"
             assert isinstance(pos_data[field], int) and pos_data[field] >= 0, f"Trường '{field}' không phải số nguyên không âm"
             
@@ -78,14 +78,15 @@ async def test_stats_endpoints():
         # TEST STAFFS STATS
         # ----------------------------------------------------
         logger.info("👨‍🏫 4. Gọi API Thống kê Giảng viên (Staffs Stats)")
-        staff_stats_res = await ac.get("/api/v1/staffs/stats", headers=headers)
+        staff_stats_res = await ac.get("/api/v1/admin/staffs/stats", headers=headers)
         assert staff_stats_res.status_code == 200, f"Lỗi staffs stats: {staff_stats_res.text}"
         staff_data = staff_stats_res.json()
         
         # Verify structure
-        for field in ["total", "active", "inactive", "high_qualification"]:
-            assert field in staff_data, f"Thiếu trường '{field}' trong response"
-            assert isinstance(staff_data[field], int) and staff_data[field] >= 0, f"Trường '{field}' không phải số nguyên không âm"
+        for category in ["departments", "positions", "staffs"]:
+            assert category in staff_data, f"Thiếu '{category}' trong response"
+            for field in ["total", "active", "inactive"]:
+                assert field in staff_data[category], f"Thiếu '{field}' trong {category}"
             
         logger.info(f"✅ Thống kê giảng viên thành công! Dữ liệu: {staff_data}")
 

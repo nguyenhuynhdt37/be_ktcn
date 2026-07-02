@@ -14,24 +14,38 @@ from app.modules.health.router import router as health_router
 from app.modules.media.router import media_router
 from app.modules.menu.routers import admin_router as menu_admin_router, portal_router as menu_portal_router
 from app.modules.category.routers import admin_router as category_admin_router, portal_router as category_portal_router
-from app.modules.article.router import router as article_router
-from app.modules.tag.router import router as tag_router
-from app.modules.faculty_staff.router import positions_router, departments_router, staffs_router
+from app.modules.article.routers.admin import router as article_admin_router
+from app.modules.article.routers.portal import router as article_portal_router
+from app.modules.tag.routers.admin import router as tag_admin_router
+from app.modules.tag.routers.portal import router as tag_portal_router
+from app.modules.department.routers import department_admin_router, department_portal_router
+from app.modules.position.routers import position_admin_router, position_portal_router
+from app.modules.staff.routers import staff_admin_router, staff_portal_router
+from app.modules.academic_title.router import admin_router as academic_title_admin_router, portal_router as academic_title_portal_router
+from app.modules.degree.router import admin_router as degree_admin_router, portal_router as degree_portal_router
 from app.modules.banner.router import banners_router
 from app.modules.language.router import admin_router as language_admin_router, portal_router as language_portal_router
 from app.modules.translation import translation_router, translation_service
+from app.modules.ai_hub.routers import ai_hub_router
+
 from app.shared.redis import close_redis, init_redis
 
 # Import all models to ensure they are registered on Base.metadata and prevent NoReferencedTableError
 from app.modules.auth.models import User, RefreshToken, LoginHistory
 from app.modules.media.models import MediaItem
 from app.modules.menu.models import Menu, MenuItem
-from app.modules.category.models import Category
+from app.modules.category.models import Category, CategoryTranslation
 from app.modules.article.models import Article
 from app.modules.tag.models import Tag
-from app.modules.faculty_staff.models import Department, Position, Staff
+from app.modules.department.models import Department, DepartmentTranslation
+from app.modules.position.models import Position, PositionTranslation
+from app.modules.staff.models import Staff, StaffTranslation
+from app.modules.academic_title.models import AcademicTitle, AcademicTitleTranslation
+from app.modules.degree.models import Degree, DegreeTranslation
 from app.modules.banner.models import Banner
 from app.modules.language.models import Language
+from app.modules.ai_hub.models import AIRequestLog
+
 
 # Initialize global logging configuration
 setup_logging()
@@ -105,12 +119,23 @@ app.include_router(menu_admin_router, prefix=f"{settings.API_V1_STR}/admin/menus
 app.include_router(menu_portal_router, prefix=f"{settings.API_V1_STR}/portal/menus", tags=["portal-menus"])
 app.include_router(category_admin_router, prefix=f"{settings.API_V1_STR}/admin/categories", tags=["admin-categories"])
 app.include_router(category_portal_router, prefix=f"{settings.API_V1_STR}/portal/categories", tags=["portal-categories"])
-app.include_router(article_router, prefix=f"{settings.API_V1_STR}/articles", tags=["articles"])
-app.include_router(tag_router, prefix=f"{settings.API_V1_STR}/tags", tags=["tags"])
-app.include_router(positions_router, prefix=f"{settings.API_V1_STR}/positions", tags=["positions"])
-app.include_router(departments_router, prefix=f"{settings.API_V1_STR}/departments", tags=["departments"])
-app.include_router(staffs_router, prefix=f"{settings.API_V1_STR}/staffs", tags=["staffs"])
+app.include_router(article_admin_router, prefix=f"{settings.API_V1_STR}/admin/articles", tags=["admin-articles"])
+app.include_router(article_portal_router, prefix=f"{settings.API_V1_STR}/portal/articles", tags=["portal-articles"])
+app.include_router(tag_admin_router, prefix=f"{settings.API_V1_STR}/admin/tags", tags=["admin-tags"])
+app.include_router(tag_portal_router, prefix=f"{settings.API_V1_STR}/portal/tags", tags=["portal-tags"])
+app.include_router(department_admin_router, prefix=f"{settings.API_V1_STR}/admin/departments", tags=["admin-departments"])
+app.include_router(department_portal_router, prefix=f"{settings.API_V1_STR}/portal/departments", tags=["portal-departments"])
+app.include_router(position_admin_router, prefix=f"{settings.API_V1_STR}/admin/positions", tags=["admin-positions"])
+app.include_router(position_portal_router, prefix=f"{settings.API_V1_STR}/portal/positions", tags=["portal-positions"])
+app.include_router(staff_admin_router, prefix=f"{settings.API_V1_STR}/admin/staffs", tags=["admin-staffs"])
+app.include_router(staff_portal_router, prefix=f"{settings.API_V1_STR}/portal/staffs", tags=["portal-staffs"])
+app.include_router(academic_title_admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin-academic-titles"])
+app.include_router(academic_title_portal_router, prefix=f"{settings.API_V1_STR}/portal", tags=["portal-academic-titles"])
+app.include_router(degree_admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin-degrees"])
+app.include_router(degree_portal_router, prefix=f"{settings.API_V1_STR}/portal", tags=["portal-degrees"])
 app.include_router(banners_router, prefix=f"{settings.API_V1_STR}/banners", tags=["banners"])
 app.include_router(language_admin_router, prefix=f"{settings.API_V1_STR}/languages", tags=["languages"])
 app.include_router(language_portal_router, prefix=f"{settings.API_V1_STR}/portal/languages", tags=["portal-languages"])
 app.include_router(translation_router, prefix=f"{settings.API_V1_STR}/translation", tags=["translation"])
+app.include_router(ai_hub_router, prefix=f"{settings.API_V1_STR}/ai-hub", tags=["ai-hub"])
+

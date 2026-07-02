@@ -16,9 +16,15 @@ from app.modules.category.models import *  # noqa: F401, F403
 from app.modules.audit.models import *  # noqa: F401, F403
 from app.modules.article.models import *  # noqa: F401, F403
 from app.modules.tag.models import *  # noqa: F401, F403
-from app.modules.faculty_staff.models import *  # noqa: F401, F403
+from app.modules.department.models import *  # noqa: F401, F403
+from app.modules.position.models import *  # noqa: F401, F403
+from app.modules.staff.models import *  # noqa: F401, F403
+from app.modules.academic_title.models import *  # noqa: F401, F403
+from app.modules.degree.models import *  # noqa: F401, F403
 from app.modules.banner.models import *  # noqa: F401, F403
 from app.modules.language.models import *  # noqa: F401, F403
+from app.modules.ai_hub.models import *  # noqa: F401, F403
+
 
 
 def include_object(object, name, type_, reflected, compare_to):

@@ -15,6 +15,7 @@ from app.modules.auth.schemas import (
     Token,
     UserCreate,
     UserUpdate,
+    ProfileUpdateRequest,
     ActiveDeviceResponse,
     LoginHistoryResponse,
     LoginHistoryItemResponse,
@@ -362,3 +363,60 @@ class AuthService:
             failed_login_count_24h=0,
             generated_at=datetime.now(timezone.utc)
         )
+
+    # ─── Profile Management ──────────────────────────────────────────────────
+
+    async def get_my_profile(self, db: AsyncSession, user_id: uuid.UUID) -> User:
+        """
+        Lấy thông tin hồ sơ chi tiết của user hiện tại (bao gồm avatar relation).
+        """
+        stmt = select(User).where(User.id == user_id).options(selectinload(User.avatar))
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NotFoundException("Không tìm thấy người dùng")
+        return user
+
+    async def update_my_profile(
+        self, db: AsyncSession, user_id: uuid.UUID, payload: ProfileUpdateRequest
+    ) -> User:
+        """
+        Cập nhật thông tin cá nhân. Chỉ cho phép sửa: full_name, phone, bio, title, avatar_id.
+        KHÔNG cho phép đổi username, email, is_active.
+        """
+        stmt = select(User).where(User.id == user_id).options(selectinload(User.avatar))
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NotFoundException("Không tìm thấy người dùng")
+
+        update_data = payload.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(user, key, value)
+
+        await db.commit()
+        await db.refresh(user, ["avatar"])
+        return user
+
+    async def change_password(
+        self, db: AsyncSession, user_id: uuid.UUID, current_password: str, new_password: str
+    ) -> None:
+        """
+        Đổi mật khẩu: xác minh mật khẩu cũ, hash và lưu mật khẩu mới.
+        Cập nhật password_changed_at.
+        """
+        stmt = select(User).where(User.id == user_id)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NotFoundException("Không tìm thấy người dùng")
+
+        if not verify_password(current_password, user.password_hash):
+            raise BadRequestException("Mật khẩu hiện tại không chính xác")
+
+        if current_password == new_password:
+            raise BadRequestException("Mật khẩu mới không được trùng với mật khẩu hiện tại")
+
+        user.password_hash = hash_password(new_password)
+        user.password_changed_at = datetime.now(timezone.utc)
+        await db.commit()

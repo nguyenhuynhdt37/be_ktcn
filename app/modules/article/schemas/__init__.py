@@ -13,7 +13,15 @@ from app.modules.article.schemas.common import (
 from app.modules.article.schemas.admin import (
     ArticleCreateRequest,
     ArticleUpdateRequest,
-    AdminArticleResponse
+    AdminArticleResponse,
+    ArticleSEOAnalyzeRequest,
+    ArticleSEOAnalyzeResponse,
+    ArticleSEORewriteRequest,
+    ArticleSEORewriteResponse,
+    ArticleGenerateByIdeaRequest,
+    ArticleGenerateByIdeaResponse,
+    ArticleSummaryRequest,
+    ArticleSummaryResponse,
 )
 from app.modules.article.schemas.portal import (
     PortalArticleListResponse,

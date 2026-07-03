@@ -259,32 +259,24 @@ class DepartmentService:
         if data.office is not None:
             dept.office = data.office
         if data.sort_order is not None and data.sort_order != dept.sort_order:
-            old_sort = dept.sort_order
-            new_sort = data.sort_order
-            from sqlalchemy import update
-            if new_sort < old_sort:
-                await db.execute(
-                    update(Department)
-                    .where(
-                        Department.deleted_at.is_(None),
-                        Department.sort_order >= new_sort,
-                        Department.sort_order < old_sort,
-                        Department.id != dept.id
-                    )
-                    .values(sort_order=Department.sort_order + 1)
-                )
-            else:
-                await db.execute(
-                    update(Department)
-                    .where(
-                        Department.deleted_at.is_(None),
-                        Department.sort_order > old_sort,
-                        Department.sort_order <= new_sort,
-                        Department.id != dept.id
-                    )
-                    .values(sort_order=Department.sort_order - 1)
-                )
-            dept.sort_order = new_sort
+            # 1. Lấy tất cả bộ môn khác sắp xếp theo sort_order tăng dần
+            stmt_other = (
+                select(Department)
+                .where(Department.deleted_at.is_(None), Department.id != dept.id)
+                .order_by(Department.sort_order.asc(), Department.created_at.desc())
+            )
+            res_other = await db.execute(stmt_other)
+            other_depts = list(res_other.scalars().all())
+            
+            # 2. Giới hạn index mới
+            new_sort = max(0, min(data.sort_order, len(other_depts)))
+            
+            # 3. Chèn department hiện tại vào index mới
+            other_depts.insert(new_sort, dept)
+            
+            # 4. Gán lại sort_order liên tục cho toàn bộ danh sách để chuẩn hóa thứ tự
+            for index, d in enumerate(other_depts):
+                d.sort_order = index
         if data.is_active is not None:
             dept.is_active = data.is_active
 
@@ -366,6 +358,15 @@ class DepartmentService:
     async def delete_department(self, db: AsyncSession, department_id: uuid.UUID) -> None:
         dept = await self.get_department(db, department_id)
         now_time = datetime.now(UTC)
+        
+        # Dồn thứ tự của các bộ môn đứng sau bộ môn này
+        from sqlalchemy import update
+        await db.execute(
+            update(Department)
+            .where(Department.deleted_at.is_(None), Department.sort_order > dept.sort_order)
+            .values(sort_order=Department.sort_order - 1)
+        )
+        
         # Xóa mềm bộ môn
         dept.deleted_at = now_time
         

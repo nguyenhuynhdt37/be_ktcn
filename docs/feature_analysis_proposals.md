@@ -109,7 +109,7 @@
 
 ## 🚀 Nhóm 4: Tính năng "Chưa Ai Làm" — Thực sự Độc đáo
 
-> Các tính năng dưới đây **chưa có trường ĐH Việt Nam nào triển khai đầy đủ** (tính đến 2026). Đây là cơ hội tạo chuẩn mực mới.
+> Các tính năng dưới đây **chưa có trường ĐH Việt Nam nào triển khai đầy đủ** (tính đến 2026). Đây là cơ hội tạo chuẩn mực mới. 
 
 ---
 

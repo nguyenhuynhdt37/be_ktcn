@@ -154,6 +154,17 @@ class ArticleService:
         Query danh sách bài viết từ database với phân trang, lọc và sắp xếp động tối ưu (Admin CMS).
         """
         builder = ArticleQueryBuilder(db)
+
+        # Lấy language_id cho resolved_translation
+        from app.modules.language.models import Language
+        lang_res = await db.execute(select(Language.id).where(Language.code == lang))
+        lang_id = lang_res.scalar()
+        if not lang_id:
+            lang_res = await db.execute(select(Language.id).where(Language.code == "vi"))
+            lang_id = lang_res.scalar()
+
+        if lang_id:
+            builder.resolve_translation(lang_id)
         
         # Áp dụng Admin scope và eager load quan hệ
         builder.admin_scope(deleted=deleted)
@@ -184,7 +195,7 @@ class ArticleService:
         # Tìm kiếm Generic
         if search:
             builder.search(
-                fields=[Article.title, Article.slug],
+                fields=[ArticleTranslation.title, ArticleTranslation.slug],
                 keyword=search
             )
             
@@ -1261,9 +1272,6 @@ class ArticleService:
             selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color),
             load_only(
                 Article.id,
-                Article.title,
-                Article.slug,
-                Article.excerpt,
                 Article.thumbnail_object_key,
                 Article.status,
                 Article.is_featured,
@@ -1273,14 +1281,6 @@ class ArticleService:
                 Article.created_at,
                 Article.publish_at,
                 Article.published_at,
-                # SEO & OpenGraph fields
-                Article.seo_title,
-                Article.seo_description,
-                Article.canonical_url,
-                Article.robots,
-                Article.og_title,
-                Article.og_description,
-                Article.og_image,
             )
         )
 
@@ -1419,7 +1419,7 @@ class ArticleService:
         # Tìm kiếm Generic
         if search:
             builder.search(
-                fields=[Article.title, Article.excerpt, Article.content],
+                fields=[ArticleTranslation.title, ArticleTranslation.excerpt, ArticleTranslation.content],
                 keyword=search
             )
             

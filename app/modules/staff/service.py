@@ -275,11 +275,15 @@ class StaffService:
         if slug_exists.scalar_one_or_none():
             slug = f"{base_slug}-{uuid.uuid4().hex[:4]}"
 
-        # Tự động đẩy các staff có sort_order >= data.sort_order
+        # Tự động đẩy các staff có sort_order >= data.sort_order TRONG CÙNG DEPARTMENT
         from sqlalchemy import update
         await db.execute(
             update(Staff)
-            .where(Staff.deleted_at.is_(None), Staff.sort_order >= data.sort_order)
+            .where(
+                Staff.deleted_at.is_(None),
+                Staff.department_id == data.department_id,
+                Staff.sort_order >= data.sort_order
+            )
             .values(sort_order=Staff.sort_order + 1)
         )
 
@@ -323,11 +327,13 @@ class StaffService:
         staff = await self.get_staff(db, staff_id)
         lang_map = await self.get_language_map(db)
 
+        # Kiểm tra validation của department_id mới trước
+        new_dept_id = staff.department_id
         if data.department_id is not None:
             dept = await db.get(Department, data.department_id)
             if not dept or dept.deleted_at is not None:
                 raise BadRequestException("Bộ môn được chọn không hợp lệ")
-            staff.department_id = data.department_id
+            new_dept_id = data.department_id
 
         if data.position_id is not None:
             pos = await db.get(Position, data.position_id)
@@ -377,33 +383,64 @@ class StaffService:
             staff.website = data.website
         if data.office is not None:
             staff.office = data.office
-        if data.sort_order is not None and data.sort_order != staff.sort_order:
-            old_sort = staff.sort_order
-            new_sort = data.sort_order
-            from sqlalchemy import update
-            if new_sort < old_sort:
-                await db.execute(
-                    update(Staff)
-                    .where(
-                        Staff.deleted_at.is_(None),
-                        Staff.sort_order >= new_sort,
-                        Staff.sort_order < old_sort,
-                        Staff.id != staff.id
-                    )
-                    .values(sort_order=Staff.sort_order + 1)
+
+        # Xử lý sort_order và department_id
+        old_dept_id = staff.department_id
+        old_sort = staff.sort_order
+        new_sort = data.sort_order
+
+        if old_dept_id != new_dept_id or (new_sort is not None and new_sort != old_sort):
+            # 1. TRƯỜNG HỢP THAY ĐỔI BỘ MÔN
+            if old_dept_id != new_dept_id:
+                # A. Dồn thứ tự ở bộ môn cũ
+                stmt_old = (
+                    select(Staff)
+                    .where(Staff.deleted_at.is_(None), Staff.department_id == old_dept_id, Staff.id != staff.id)
+                    .order_by(Staff.sort_order.asc(), Staff.created_at.desc())
                 )
+                res_old = await db.execute(stmt_old)
+                old_dept_staffs = list(res_old.scalars().all())
+                for index, s in enumerate(old_dept_staffs):
+                    s.sort_order = index
+
+                # B. Chèn vào bộ môn mới
+                stmt_new = (
+                    select(Staff)
+                    .where(Staff.deleted_at.is_(None), Staff.department_id == new_dept_id, Staff.id != staff.id)
+                    .order_by(Staff.sort_order.asc(), Staff.created_at.desc())
+                )
+                res_new = await db.execute(stmt_new)
+                new_dept_staffs = list(res_new.scalars().all())
+
+                if new_sort is None:
+                    new_sort = len(new_dept_staffs)
+                else:
+                    new_sort = max(0, min(new_sort, len(new_dept_staffs)))
+                
+                staff.department_id = new_dept_id
+                new_dept_staffs.insert(new_sort, staff)
+
+                # Re-index toàn bộ danh sách bộ môn mới
+                for index, s in enumerate(new_dept_staffs):
+                    s.sort_order = index
+
+            # 2. TRƯỜNG HỢP CÙNG BỘ MÔN NHƯNG THAY ĐỔI THỨ TỰ
             else:
-                await db.execute(
-                    update(Staff)
-                    .where(
-                        Staff.deleted_at.is_(None),
-                        Staff.sort_order > old_sort,
-                        Staff.sort_order <= new_sort,
-                        Staff.id != staff.id
-                    )
-                    .values(sort_order=Staff.sort_order - 1)
+                stmt_same = (
+                    select(Staff)
+                    .where(Staff.deleted_at.is_(None), Staff.department_id == old_dept_id, Staff.id != staff.id)
+                    .order_by(Staff.sort_order.asc(), Staff.created_at.desc())
                 )
-            staff.sort_order = new_sort
+                res_same = await db.execute(stmt_same)
+                same_dept_staffs = list(res_same.scalars().all())
+
+                new_sort = max(0, min(new_sort, len(same_dept_staffs)))
+                same_dept_staffs.insert(new_sort, staff)
+
+                # Re-index toàn bộ danh sách trong bộ môn
+                for index, s in enumerate(same_dept_staffs):
+                    s.sort_order = index
+
         if data.is_active is not None:
             staff.is_active = data.is_active
 
@@ -436,6 +473,19 @@ class StaffService:
 
     async def delete_staff(self, db: AsyncSession, staff_id: uuid.UUID) -> None:
         staff = await self.get_staff(db, staff_id)
+        
+        # Dồn thứ tự các giảng viên đứng sau trong bộ môn
+        from sqlalchemy import update
+        await db.execute(
+            update(Staff)
+            .where(
+                Staff.deleted_at.is_(None),
+                Staff.department_id == staff.department_id,
+                Staff.sort_order > staff.sort_order
+            )
+            .values(sort_order=Staff.sort_order - 1)
+        )
+        
         staff.deleted_at = datetime.now(UTC)
         await db.flush()
 

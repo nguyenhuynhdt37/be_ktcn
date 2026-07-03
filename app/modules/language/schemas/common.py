@@ -16,7 +16,6 @@ class LanguageCreate(BaseModel):
     )
     name: str = Field(..., min_length=1, max_length=100, description="Tên tiếng Anh hoặc tên hiển thị chung của ngôn ngữ")
     native_name: str = Field(..., min_length=1, max_length=100, description="Tên bản địa của ngôn ngữ")
-    flag_id: Optional[uuid.UUID] = Field(default=None, description="ID ảnh quốc kỳ trong thư viện Media")
     is_default: bool = Field(default=False, description="Đánh dấu là ngôn ngữ mặc định")
     is_system: bool = Field(default=False, description="Đánh dấu ngôn ngữ hệ thống cốt lõi")
     is_active: bool = Field(default=True, description="Trạng thái hoạt động")
@@ -36,7 +35,6 @@ class LanguageUpdate(BaseModel):
     """
     name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Tên ngôn ngữ")
     native_name: Optional[str] = Field(default=None, min_length=1, max_length=100, description="Tên bản địa")
-    flag_id: Optional[uuid.UUID] = Field(default=None, description="ID ảnh quốc kỳ trong thư viện Media")
     is_default: Optional[bool] = Field(default=None, description="Đánh dấu là ngôn ngữ mặc định")
     is_active: Optional[bool] = Field(default=None, description="Trạng thái hoạt động")
     sort_order: Optional[int] = Field(default=None, ge=0, description="Thứ tự sắp xếp, phải >= 0")

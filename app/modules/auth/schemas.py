@@ -35,6 +35,9 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     username: str
     email: str
+    full_name: str = ""
+    avatar_url: str | None = None
+    roles: list[str] = []
     is_active: bool = True
 
 
@@ -212,3 +215,46 @@ class UserDetailResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ─── Profile Management Schemas ──────────────────────────────────────────────
+
+class ProfileUpdateRequest(BaseModel):
+    """
+    Request payload cho cập nhật hồ sơ cá nhân.
+    Chỉ cho phép sửa thông tin cá nhân, KHÔNG cho đổi username/email/is_active.
+    """
+    full_name: str | None = Field(default=None, min_length=1, max_length=100, description="Họ và tên")
+    phone: str | None = Field(default=None, max_length=20, description="Số điện thoại")
+    bio: str | None = Field(default=None, description="Mô tả bản thân")
+    title: str | None = Field(default=None, max_length=100, description="Chức danh")
+    avatar_id: uuid.UUID | None = Field(default=None, description="ID ảnh đại diện từ media")
+
+
+class ChangePasswordRequest(BaseModel):
+    """
+    Request payload cho đổi mật khẩu.
+    """
+    current_password: str = Field(..., min_length=1, description="Mật khẩu hiện tại")
+    new_password: str = Field(..., min_length=6, max_length=100, description="Mật khẩu mới")
+
+
+class MyProfileResponse(BaseModel):
+    """
+    Response chi tiết cho hồ sơ cá nhân (dùng cho /admin/profile).
+    Trả avatar_url đã resolve thay vì raw avatar object.
+    """
+    id: uuid.UUID
+    username: str
+    email: str
+    phone: str | None = None
+    full_name: str
+    bio: str | None = None
+    title: str | None = None
+    avatar_url: str | None = None
+    roles: list[str] = []
+    is_active: bool
+    last_login: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+

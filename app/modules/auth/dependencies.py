@@ -4,6 +4,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.core.database import get_db
 from app.core.exceptions import UnauthorizedException
@@ -36,17 +37,25 @@ async def get_current_user_optional(
     except Exception:
         return None
 
-    stmt = select(User).where(User.id == user_uuid)
+    stmt = select(User).where(User.id == user_uuid).options(joinedload(User.avatar))
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
     if user is None or not user.is_active:
         return None
 
+    roles = ["super_admin"] if user.username == "superadmin" else ["admin"]
+    avatar_url = user.avatar.object_key if user.avatar else user.avatar_url
+    if avatar_url == "http://example.com/avatar.jpg":
+        avatar_url = None
+
     return UserResponse(
         id=user.id,
         username=user.username,
         email=user.email,
+        full_name=user.full_name,
+        avatar_url=avatar_url,
+        roles=roles,
         is_active=user.is_active,
     )
 
@@ -88,7 +97,7 @@ async def get_current_user(
             error_code="INVALID_ACCESS_TOKEN"
         ) from err
 
-    stmt = select(User).where(User.id == user_uuid)
+    stmt = select(User).where(User.id == user_uuid).options(joinedload(User.avatar))
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
@@ -103,9 +112,17 @@ async def get_current_user(
             error_code="INACTIVE_USER"
         )
 
+    roles = ["super_admin"] if user.username == "superadmin" else ["admin"]
+    avatar_url = user.avatar.object_key if user.avatar else user.avatar_url
+    if avatar_url == "http://example.com/avatar.jpg":
+        avatar_url = None
+
     return UserResponse(
         id=user.id,
         username=user.username,
         email=user.email,
+        full_name=user.full_name,
+        avatar_url=avatar_url,
+        roles=roles,
         is_active=user.is_active,
     )

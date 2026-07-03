@@ -7,40 +7,20 @@ from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import UserResponse
 from app.modules.banner.models import BannerPosition
-from app.modules.banner.schemas import (
+from app.modules.banner.schemas.common import (
     BannerCreate,
     BannerResponse,
     BannerStatusUpdate,
     BannerUpdate,
-    BannerPaginationResponse,
 )
+from app.modules.banner.schemas.admin import BannerPaginationResponse
 from app.modules.banner.service import banner_service
 from app.modules.audit.service import log_action
 
-banners_router = APIRouter()
-
-# ──────────────────────────────────────────────
-# Public Portal APIs
-# ──────────────────────────────────────────────
-
-@banners_router.get("", response_model=list[BannerResponse])
-async def list_banners_portal(
-    position: Optional[BannerPosition] = Query(default=None, description="Lọc theo vị trí hiển thị"),
-    db: AsyncSession = Depends(get_db),
-) -> list[BannerResponse]:
-    """
-    Lấy danh sách các banner đang hiệu lực hiển thị ở Portal (Public - Không cần đăng nhập).
-    Trả về mảng danh sách được sắp xếp theo sort_order tăng dần.
-    """
-    banners = await banner_service.list_banners_portal(db, position=position)
-    return [BannerResponse.model_validate(b) for b in banners]
+admin_router = APIRouter()
 
 
-# ──────────────────────────────────────────────
-# Admin Management APIs
-# ──────────────────────────────────────────────
-
-@banners_router.get("/admin", response_model=BannerPaginationResponse)
+@admin_router.get("", response_model=BannerPaginationResponse)
 async def list_banners_admin(
     page: int = Query(default=1, ge=1, description="Chỉ số trang (bắt đầu từ 1)"),
     page_size: int = Query(default=10, ge=1, le=1000, description="Số lượng banner trên mỗi trang"),
@@ -94,10 +74,11 @@ async def list_banners_admin(
     )
 
 
-@banners_router.get("/{banner_id}", response_model=BannerResponse)
+@admin_router.get("/{banner_id}", response_model=BannerResponse)
 async def get_banner(
     banner_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> BannerResponse:
     """
     Lấy chi tiết thông tin một banner theo ID.
@@ -106,7 +87,7 @@ async def get_banner(
     return BannerResponse.model_validate(banner)
 
 
-@banners_router.post("", response_model=BannerResponse, status_code=201)
+@admin_router.post("", response_model=BannerResponse, status_code=201)
 async def create_banner(
     request: Request,
     payload: BannerCreate,
@@ -132,7 +113,7 @@ async def create_banner(
     return BannerResponse.model_validate(banner)
 
 
-@banners_router.put("/{banner_id}", response_model=BannerResponse)
+@admin_router.put("/{banner_id}", response_model=BannerResponse)
 async def update_banner(
     request: Request,
     banner_id: uuid.UUID,
@@ -159,7 +140,7 @@ async def update_banner(
     return BannerResponse.model_validate(banner)
 
 
-@banners_router.patch("/{banner_id}/status", response_model=BannerResponse)
+@admin_router.patch("/{banner_id}/status", response_model=BannerResponse)
 async def update_banner_status(
     request: Request,
     banner_id: uuid.UUID,
@@ -186,7 +167,7 @@ async def update_banner_status(
     return BannerResponse.model_validate(banner)
 
 
-@banners_router.delete("/{banner_id}", status_code=204)
+@admin_router.delete("/{banner_id}", status_code=204)
 async def delete_banner(
     request: Request,
     banner_id: uuid.UUID,

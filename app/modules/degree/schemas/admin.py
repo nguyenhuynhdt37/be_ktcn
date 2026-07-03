@@ -1,13 +1,6 @@
 import uuid
 from typing import Optional, Any
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-
-class DegreeTranslationResponse(BaseModel):
-    name: str
-    abbreviation: Optional[str] = None
-
-    model_config = ConfigDict(from_attributes=True)
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class DegreeAdminResponse(BaseModel):
@@ -55,13 +48,3 @@ class DegreeAdminResponse(BaseModel):
             "name": matched.name if matched else None,
             "abbreviation": matched.abbreviation if matched else None
         }
-
-
-class DegreePortalResponse(BaseModel):
-    """Response phẳng (đã dịch) cho Portal Website."""
-    id: uuid.UUID
-    name: str
-    abbreviation: Optional[str] = None
-    sort_order: int
-
-    model_config = ConfigDict(from_attributes=True)

@@ -10,8 +10,8 @@ from app.core.exceptions import setup_exception_handlers
 from app.core.logger import setup_logging
 from app.modules.auth.router import router as auth_router, users_router
 from app.modules.audit.router import audit_router
-from app.modules.health.router import router as health_router
-from app.modules.media.router import media_router
+from app.modules.health.routers import portal_router as health_router
+from app.modules.media.routers import admin_router as media_admin_router
 from app.modules.menu.routers import admin_router as menu_admin_router, portal_router as menu_portal_router
 from app.modules.category.routers import admin_router as category_admin_router, portal_router as category_portal_router
 from app.modules.article.routers.admin import router as article_admin_router
@@ -22,9 +22,9 @@ from app.modules.department.routers import department_admin_router, department_p
 from app.modules.position.routers import position_admin_router, position_portal_router
 from app.modules.staff.routers import staff_admin_router, staff_portal_router
 from app.modules.academic_title.router import admin_router as academic_title_admin_router, portal_router as academic_title_portal_router
-from app.modules.degree.router import admin_router as degree_admin_router, portal_router as degree_portal_router
+from app.modules.degree.routers import admin_router as degree_admin_router, portal_router as degree_portal_router
 from app.modules.banner.router import banners_router
-from app.modules.language.router import admin_router as language_admin_router, portal_router as language_portal_router
+from app.modules.language.routers import admin_router as language_admin_router, portal_router as language_portal_router
 from app.modules.translation import translation_router, translation_service
 from app.modules.ai_hub.routers import ai_hub_router
 
@@ -108,7 +108,7 @@ app.include_router(health_router)
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(users_router, prefix=settings.API_V1_STR)
 
-app.include_router(media_router, prefix=f"{settings.API_V1_STR}/media", tags=["media"])
+app.include_router(media_admin_router, prefix=f"{settings.API_V1_STR}/admin/media", tags=["admin-media"])
 app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/audit-logs", tags=["audit"])
 app.include_router(menu_admin_router, prefix=f"{settings.API_V1_STR}/admin/menus", tags=["admin-menus"])
 app.include_router(menu_portal_router, prefix=f"{settings.API_V1_STR}/portal/menus", tags=["portal-menus"])
@@ -126,10 +126,10 @@ app.include_router(staff_admin_router, prefix=f"{settings.API_V1_STR}/admin/staf
 app.include_router(staff_portal_router, prefix=f"{settings.API_V1_STR}/portal/staffs", tags=["portal-staffs"])
 app.include_router(academic_title_admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin-academic-titles"])
 app.include_router(academic_title_portal_router, prefix=f"{settings.API_V1_STR}/portal", tags=["portal-academic-titles"])
-app.include_router(degree_admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin-degrees"])
-app.include_router(degree_portal_router, prefix=f"{settings.API_V1_STR}/portal", tags=["portal-degrees"])
+app.include_router(degree_admin_router, prefix=f"{settings.API_V1_STR}/admin/degrees", tags=["admin-degrees"])
+app.include_router(degree_portal_router, prefix=f"{settings.API_V1_STR}/portal/degrees", tags=["portal-degrees"])
 app.include_router(banners_router, prefix=f"{settings.API_V1_STR}/banners", tags=["banners"])
-app.include_router(language_admin_router, prefix=f"{settings.API_V1_STR}/languages", tags=["languages"])
+app.include_router(language_admin_router, prefix=f"{settings.API_V1_STR}/admin/languages", tags=["admin-languages"])
 app.include_router(language_portal_router, prefix=f"{settings.API_V1_STR}/portal/languages", tags=["portal-languages"])
 app.include_router(translation_router, prefix=f"{settings.API_V1_STR}/translation", tags=["translation"])
 app.include_router(ai_hub_router, prefix=f"{settings.API_V1_STR}/ai-hub", tags=["ai-hub"])

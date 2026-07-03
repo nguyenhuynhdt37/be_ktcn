@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.shared.redis import get_redis
 
-router = APIRouter(tags=["Health"])
+portal_router = APIRouter(tags=["Health"])
 
 
-@router.get("/health")
+@portal_router.get("/health")
 async def health_check(
     db: AsyncSession = Depends(get_db),
     redis_client: aioredis.Redis = Depends(get_redis),

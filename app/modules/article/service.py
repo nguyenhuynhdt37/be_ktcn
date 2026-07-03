@@ -1219,15 +1219,11 @@ class ArticleService:
         """
         # 1. Tìm Category theo slug (hỗ trợ slug gốc hoặc slug bản dịch)
         from app.modules.category.models import CategoryTranslation
-        from sqlalchemy import or_
         cat_stmt = (
             select(Category)
             .outerjoin(CategoryTranslation)
             .where(
-                or_(
-                    Category.slug == category_slug,
-                    CategoryTranslation.slug == category_slug
-                ),
+                CategoryTranslation.slug == category_slug,
                 Category.deleted_at.is_(None)
             )
             .limit(1)
@@ -1264,24 +1260,12 @@ class ArticleService:
         count_res = await db.execute(count_stmt)
         total = count_res.scalar() or 0
 
-        # 3. Nạp trước các quan hệ (Eager Loading) & Chỉ lấy các cột cần thiết (load_only)
+        # 3. Nạp trước các quan hệ (Eager Loading)
         stmt = stmt.options(
-            joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+            joinedload(Article.category).load_only(Category.id),
             joinedload(Article.author).joinedload(User.avatar),
             joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-            selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color),
-            load_only(
-                Article.id,
-                Article.thumbnail_object_key,
-                Article.status,
-                Article.is_featured,
-                Article.is_pinned,
-                Article.is_draft,
-                Article.view_count,
-                Article.created_at,
-                Article.publish_at,
-                Article.published_at,
-            )
+            selectinload(Article.tags).load_only(Tag.id, Tag.color)
         )
 
         # 4. Sắp xếp: Ghim lên đầu (is_pinned DESC), sau đó đến ngày công bố mới nhất (publish_at DESC)

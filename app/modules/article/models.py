@@ -149,7 +149,7 @@ class ArticleTranslation(BaseModel):
 
     # Relationships
     article: Mapped["Article"] = relationship("Article", back_populates="translations")
-    language: Mapped["Language"] = relationship("Language")
+    language: Mapped["Language"] = relationship("Language", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("article_id", "language_id", name="uq_article_language_unique"),

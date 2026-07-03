@@ -73,7 +73,7 @@ async def list_category_articles_portal(
 
     return PortalArticlePaginationResponse(
         items=[PortalArticleResponse.model_validate(item) for item in items],
-        total=total,
+        total_items=total,
         page=page,
         page_size=page_size,
         total_pages=total_pages,

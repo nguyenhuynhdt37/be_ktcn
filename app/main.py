@@ -3,6 +3,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
+from app.core.middleware.security import SecurityHeadersMiddleware, RequestSizeLimiterMiddleware
+from app.core.middleware.rate_limit import RateLimitMiddleware
 
 from app.core.config import settings
 from app.core.database import engine
@@ -80,6 +84,15 @@ app = FastAPI(
     docs_url="/docs" if settings.ENV != "production" else None,
     redoc_url="/redoc" if settings.ENV != "production" else None,
 )
+
+# Configure Security Middlewares
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.ALLOWED_HOSTS
+)
+app.add_middleware(RequestSizeLimiterMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 # Configure CORS (Cross-Origin Resource Sharing)
 if settings.ENV == "development":

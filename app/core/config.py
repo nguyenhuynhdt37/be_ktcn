@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     BACKEND_CORS_ORIGINS: Annotated[list[str], BeforeValidator(parse_cors)] = []
+    ALLOWED_HOSTS: Annotated[list[str], BeforeValidator(parse_cors)] = ["*"]
+    
+    # Security Configuration
+    MAX_CONTENT_LENGTH: int = 10 * 1024 * 1024  # 10MB limit
+    RATE_LIMIT_GLOBAL: str = "100/minute"
+    RATE_LIMIT_AUTH: str = "5/minute"
+    RATE_LIMIT_AI: str = "10/minute"
 
     # Postgres
     POSTGRES_SERVER: str = "localhost"

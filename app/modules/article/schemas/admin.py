@@ -36,7 +36,6 @@ class ArticleCreateRequest(BaseModel):
     expire_at: Optional[datetime] = Field(default=None)
     thumbnail_object_key: Optional[str] = Field(default=None)
     cover_object_key: Optional[str] = Field(default=None)
-    is_featured: bool = Field(default=False)
     is_pinned: bool = Field(default=False)
     is_draft: bool = Field(default=True)
     category: Optional[Any] = None
@@ -81,7 +80,6 @@ class ArticleUpdateRequest(BaseModel):
     expire_at: Optional[datetime] = None
     thumbnail_object_key: Optional[str] = None
     cover_object_key: Optional[str] = None
-    is_featured: Optional[bool] = None
     is_pinned: Optional[bool] = None
     is_draft: Optional[bool] = None
     category: Optional[Any] = None
@@ -124,7 +122,6 @@ class AdminArticleResponse(BaseModel):
     author_id: Optional[uuid.UUID] = None
     status: ArticleStatus
     is_draft: bool
-    is_featured: bool
     is_pinned: bool
     sort_order: int
     view_count: int

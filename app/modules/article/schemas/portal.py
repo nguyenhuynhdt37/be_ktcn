@@ -17,7 +17,6 @@ class PortalArticleListResponse(BaseModel):
     category_id: Optional[uuid.UUID] = None
     author_id: Optional[uuid.UUID] = None
     status: ArticleStatus
-    is_featured: bool
     is_pinned: bool
     view_count: int
     created_at: datetime
@@ -46,7 +45,6 @@ class PortalArticleResponse(BaseModel):
     category_id: Optional[uuid.UUID] = None
     author_id: Optional[uuid.UUID] = None
     status: ArticleStatus
-    is_featured: bool
     is_pinned: bool
     view_count: int
     word_count: int

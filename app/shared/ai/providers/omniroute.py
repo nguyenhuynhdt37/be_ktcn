@@ -168,11 +168,13 @@ class OmniRouteProvider(BaseAIProvider):
             "temperature": temperature if temperature is not None else 0.7,
         }
         if max_tokens is not None:
+            # Giới hạn max_tokens trong khoảng an toàn để tránh upstream bị treo
+            max_tokens = max(10, min(max_tokens, 8000))
             payload["max_tokens"] = max_tokens
 
         payload.update(kwargs)
 
-        logger.debug(f"Calling OmniRoute: {url} with model {model_to_use}")
+        logger.debug(f"Calling OmniRoute: {url} with model {model_to_use}. Payload: {payload}")
 
         start_time = time.time()
         try:

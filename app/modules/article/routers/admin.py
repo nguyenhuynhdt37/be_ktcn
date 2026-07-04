@@ -54,11 +54,14 @@ async def list_articles(
     page_size: int = Query(default=10, ge=1, le=100),
     search: Optional[str] = Query(default=None),
     category_id: Optional[uuid.UUID] = Query(default=None),
+    category_slugs: Optional[list[str]] = Query(default=None, alias="category_slugs"),
+    category_slugs_arr: Optional[list[str]] = Query(default=None, alias="category_slugs[]"),
+    exclude_category_slugs: Optional[list[str]] = Query(default=None, alias="exclude_category_slugs"),
+    exclude_category_slugs_arr: Optional[list[str]] = Query(default=None, alias="exclude_category_slugs[]"),
     author_id: Optional[uuid.UUID] = Query(default=None),
     tag_ids: Optional[list[str]] = Query(default=None, alias="tag_ids"),
     tag_ids_arr: Optional[list[str]] = Query(default=None, alias="tag_ids[]"),
     status: Optional[ArticleStatus] = Query(default=None),
-    is_featured: Optional[bool] = Query(default=None),
     is_pinned: Optional[bool] = Query(default=None),
     is_draft: Optional[bool] = Query(default=False),
     created_from: Optional[datetime] = Query(default=None),
@@ -91,6 +94,42 @@ async def list_articles(
             detail="Không cho phép truy vấn trạng thái DRAFT qua API này."
         )
 
+    parsed_category_slugs = []
+    raw_slugs = []
+    if category_slugs:
+        raw_slugs.extend(category_slugs)
+    if category_slugs_arr:
+        raw_slugs.extend(category_slugs_arr)
+
+    for item in raw_slugs:
+        if "," in item:
+            for sub_item in item.split(","):
+                sub_item = sub_item.strip()
+                if sub_item:
+                    parsed_category_slugs.append(sub_item)
+        else:
+            item = item.strip()
+            if item:
+                parsed_category_slugs.append(item)
+
+    parsed_exclude_category_slugs = []
+    raw_exclude_slugs = []
+    if exclude_category_slugs:
+        raw_exclude_slugs.extend(exclude_category_slugs)
+    if exclude_category_slugs_arr:
+        raw_exclude_slugs.extend(exclude_category_slugs_arr)
+
+    for item in raw_exclude_slugs:
+        if "," in item:
+            for sub_item in item.split(","):
+                sub_item = sub_item.strip()
+                if sub_item:
+                    parsed_exclude_category_slugs.append(sub_item)
+        else:
+            item = item.strip()
+            if item:
+                parsed_exclude_category_slugs.append(item)
+
     parsed_tag_ids = []
     raw_tags = []
     if tag_ids:
@@ -119,10 +158,11 @@ async def list_articles(
         page_size=page_size,
         search=search,
         category_id=category_id,
+        category_slugs=parsed_category_slugs if parsed_category_slugs else None,
+        exclude_category_slugs=parsed_exclude_category_slugs if parsed_exclude_category_slugs else None,
         author_id=author_id,
         tag_ids=parsed_tag_ids if parsed_tag_ids else None,
         status=status,
-        is_featured=is_featured,
         is_pinned=is_pinned,
         is_draft=is_draft,
         created_from=created_from,

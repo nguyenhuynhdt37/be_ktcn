@@ -13,6 +13,7 @@ portal_router = APIRouter()
 @portal_router.get("", response_model=list[PortalStaffResponse])
 async def list_staffs_portal(
     department_id: Optional[uuid.UUID] = Query(None, description="Lọc theo bộ môn"),
+    department_slug: Optional[str] = Query(None, description="Lọc theo slug bộ môn"),
     position_id: Optional[uuid.UUID] = Query(None, description="Lọc theo chức vụ"),
     accept_language: Optional[str] = Header(None, alias="Accept-Language"),
     lang: Optional[str] = Query(None, description="Mã ngôn ngữ (vi, en)"),
@@ -28,6 +29,14 @@ async def list_staffs_portal(
         primary = accept_language.split(",")[0].split("-")[0].lower()
         if primary in ["vi", "en"]:
             selected_lang = primary
+
+    if department_slug:
+        from app.modules.department.service import department_service
+        try:
+            dept = await department_service.get_department_by_slug(db, department_slug, lang=selected_lang)
+            department_id = dept.id
+        except Exception:
+            return []
 
     staffs, _ = await staff_service.list_staffs(
         db=db,

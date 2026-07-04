@@ -135,10 +135,11 @@ class ArticleService:
         page_size: int = 10,
         search: Optional[str] = None,
         category_id: Optional[uuid.UUID] = None,
+        category_slugs: Optional[list[str]] = None,
+        exclude_category_slugs: Optional[list[str]] = None,
         author_id: Optional[uuid.UUID] = None,
         tag_ids: Optional[list[uuid.UUID]] = None,
         status: Optional[ArticleStatus] = None,
-        is_featured: Optional[bool] = None,
         is_pinned: Optional[bool] = None,
         is_draft: Optional[bool] = False,
         created_from: Optional[datetime] = None,
@@ -173,9 +174,10 @@ class ArticleService:
         # Đóng gói filter params
         filter_params = ArticleFilterParams(
             category_id=category_id,
+            category_slugs=category_slugs,
+            exclude_category_slugs=exclude_category_slugs,
             author_id=author_id,
             tag_ids=tag_ids,
-            is_featured=is_featured,
             is_pinned=is_pinned,
             published_from=published_from,
             published_to=published_to,
@@ -530,7 +532,7 @@ class ArticleService:
         current_user: Any,
     ) -> Article:
         """
-        Cập nhật nhanh các thuộc tính đặc biệt (is_featured, is_pinned) của bài viết.
+        Cập nhật nhanh các thuộc tính đặc biệt (is_pinned) của bài viết.
         """
         from app.modules.category.models import CategoryTranslation
         from app.modules.tag.models import TagTranslation
@@ -558,10 +560,6 @@ class ArticleService:
             raise NotFoundException(message="Không tìm thấy bài viết hoặc bài viết đã bị xóa.")
 
         changes = {}
-        if payload.is_featured is not None:
-            changes["is_featured"] = {"old": article.is_featured, "new": payload.is_featured}
-            article.is_featured = payload.is_featured
-        
         if payload.is_pinned is not None:
             changes["is_pinned"] = {"old": article.is_pinned, "new": payload.is_pinned}
             article.is_pinned = payload.is_pinned
@@ -676,7 +674,6 @@ class ArticleService:
             thumbnail_object_key=payload.thumbnail_object_key,
             cover_object_key=payload.cover_object_key,
             status=payload.status,
-            is_featured=payload.is_featured,
             is_pinned=payload.is_pinned,
             is_draft=payload.is_draft,
             word_count=word_count,
@@ -1058,8 +1055,6 @@ class ArticleService:
             article.status = payload.status
         if payload.is_draft is not None:
             article.is_draft = payload.is_draft
-        if payload.is_featured is not None:
-            article.is_featured = payload.is_featured
         if payload.is_pinned is not None:
             article.is_pinned = payload.is_pinned
         if payload.thumbnail_object_key is not None:
@@ -1366,9 +1361,10 @@ class ArticleService:
         page_size: int = 10,
         search: Optional[str] = None,
         category_slug: Optional[str] = None,
+        category_slugs: Optional[list[str]] = None,
+        exclude_category_slugs: Optional[list[str]] = None,
         tag_slug: Optional[str] = None,
         author_username: Optional[str] = None,
-        is_featured: Optional[bool] = None,
         is_pinned: Optional[bool] = None,
         has_thumbnail: Optional[bool] = None,
         published_from: Optional[datetime] = None,
@@ -1401,9 +1397,10 @@ class ArticleService:
         # Đóng gói filter params
         filter_params = ArticleFilterParams(
             category_slug=category_slug,
+            category_slugs=category_slugs,
+            exclude_category_slugs=exclude_category_slugs,
             tag_slug=tag_slug,
             author_username=author_username,
-            is_featured=is_featured,
             is_pinned=is_pinned,
             has_thumbnail=has_thumbnail,
             published_from=published_from,

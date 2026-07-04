@@ -1212,6 +1212,7 @@ class ArticleService:
         category_slug: str,
         page: int = 1,
         page_size: int = 10,
+        lang: str = "vi",
     ) -> Tuple[list[Article], int]:
         """
         Query danh sách bài viết công khai thuộc một danh mục cụ thể cho Portal FE Client.
@@ -1278,6 +1279,16 @@ class ArticleService:
         # 6. Thực thi
         result = await db.execute(stmt)
         items = list(result.scalars().all())
+
+        # Apply translations phẳng cho kết quả đầu ra
+        for item in items:
+            self._apply_translation(item, lang=lang)
+            if item.category:
+                from app.modules.category.service import category_service
+                category_service._apply_translation(item.category, lang=lang)
+            for tag in item.tags:
+                from app.modules.tag.service import tag_service
+                tag_service._apply_translation(tag, lang=lang)
 
         return items, total
 

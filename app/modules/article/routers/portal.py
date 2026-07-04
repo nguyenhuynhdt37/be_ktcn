@@ -1,9 +1,12 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request, Response, Cookie
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
+import redis.asyncio as aioredis
+from app.shared.redis import get_redis
+from app.core.config import settings
 
 from app.core.database import get_db
 from app.modules.article.schemas import (
@@ -127,8 +130,47 @@ async def list_all_articles_portal(
 @router.get("/{slug}", response_model=PortalArticleResponse)
 async def get_article_detail_portal(
     slug: str,
+    request: Request,
+    response: Response,
     lang: str = Query(default="vi"),
-    db: AsyncSession = Depends(get_db)
+    guest_uuid: Optional[str] = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+    redis_client: aioredis.Redis = Depends(get_redis),
 ) -> PortalArticleResponse:
-    article = await article_service.get_article_by_slug_portal(db, slug=slug, lang=lang)
+    # 1. Xác định hoặc sinh mới guest_uuid
+    is_new_guest = False
+    if not guest_uuid:
+        guest_uuid = str(uuid.uuid4())
+        is_new_guest = True
+
+    # 2. Lấy IP khách hàng làm fallback
+    client_ip = None
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "unknown"
+
+    # 3. Lấy chi tiết bài viết và tăng view (có kiểm tra trùng lặp qua Redis)
+    article = await article_service.get_article_by_slug_portal(
+        db, 
+        slug=slug, 
+        lang=lang, 
+        guest_uuid=guest_uuid, 
+        client_ip=client_ip, 
+        redis_client=redis_client
+    )
+
+    # 4. Lưu guest_uuid vào cookie nếu sinh mới
+    if is_new_guest:
+        response.set_cookie(
+            key="guest_uuid",
+            value=guest_uuid,
+            httponly=True,
+            secure=settings.ENV == "production",
+            samesite="lax",
+            max_age=365 * 24 * 60 * 60,  # 1 năm
+            path="/"
+        )
+
     return PortalArticleResponse.model_validate(article)

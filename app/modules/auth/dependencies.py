@@ -1,7 +1,8 @@
 import uuid
-from fastapi import Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from typing import Optional
 import jwt
+from fastapi import Cookie, Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -12,22 +13,25 @@ from app.core.security import decode_access_token
 from app.modules.auth.models import User
 from app.modules.auth.schemas import TokenPayload, UserResponse
 
-reusable_oauth2 = HTTPBearer()
 reusable_oauth2_optional = HTTPBearer(auto_error=False)
 
 
 async def get_current_user_optional(
-    http_auth: HTTPAuthorizationCredentials | None = Depends(reusable_oauth2_optional),
+    access_token: Optional[str] = Cookie(None),
+    http_auth: Optional[HTTPAuthorizationCredentials] = Depends(reusable_oauth2_optional),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse | None:
     """
-    Optional user authentication. Returns UserResponse if a valid token is provided,
+    Optional user authentication. Returns UserResponse if a valid token is provided in cookie or header,
     otherwise returns None without raising UnauthorizedException.
     """
-    if http_auth is None:
+    token = access_token
+    if not token and http_auth:
+        token = http_auth.credentials
+
+    if not token:
         return None
         
-    token = http_auth.credentials
     try:
         payload = decode_access_token(token)
         token_data = TokenPayload(**payload)
@@ -60,16 +64,25 @@ async def get_current_user_optional(
     )
 
 
-
 async def get_current_user(
-    http_auth: HTTPAuthorizationCredentials = Depends(reusable_oauth2),
+    access_token: Optional[str] = Cookie(None),
+    http_auth: Optional[HTTPAuthorizationCredentials] = Depends(reusable_oauth2_optional),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     """
-    Retrieves the currently authenticated user by decoding the JWT access token and
-    querying the PostgreSQL database.
+    Retrieves the currently authenticated user by decoding the JWT access token from cookies (or header)
+    and querying the PostgreSQL database.
     """
-    token = http_auth.credentials
+    token = access_token
+    if not token and http_auth:
+        token = http_auth.credentials
+
+    if not token:
+        raise UnauthorizedException(
+            message="Chưa đăng nhập hoặc phiên làm việc hết hạn",
+            error_code="MISSING_ACCESS_TOKEN"
+        )
+
     try:
         payload = decode_access_token(token)
         token_data = TokenPayload(**payload)

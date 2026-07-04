@@ -1292,10 +1292,13 @@ class ArticleService:
         db: AsyncSession,
         slug: str,
         lang: str = "vi",
+        guest_uuid: Optional[str] = None,
+        client_ip: Optional[str] = None,
+        redis_client: Optional[Any] = None,
     ) -> Article:
         """
         Lấy chi tiết một bài viết công khai theo slug cho Portal FE Client.
-        Tự động tăng view_count của bài viết lên 1.
+        Tự động tăng view_count của bài viết lên 1 nếu là lượt xem mới (kiểm tra qua Redis).
         """
         now = datetime.now(timezone.utc)
         from app.modules.language.models import Language
@@ -1337,10 +1340,33 @@ class ArticleService:
         if not article:
             raise NotFoundException(message=f"Không tìm thấy bài viết hoặc bài viết chưa được công bố.")
 
-        # 2. Tăng view_count tự động
-        article.view_count += 1
-        db.add(article)
-        await db.flush()
+        # 2. Tăng view_count tự động nếu là lượt xem mới
+        if redis_client:
+            guest_key = f"view_limit:article:{article.id}:guest:{guest_uuid}" if guest_uuid else None
+            ip_key = f"view_limit:article:{article.id}:ip:{client_ip}" if client_ip else None
+            
+            # Kiểm tra xem guest_uuid hoặc IP đã xem bài viết này chưa
+            has_viewed = False
+            if guest_key and await redis_client.exists(guest_key):
+                has_viewed = True
+            if not has_viewed and ip_key and await redis_client.exists(ip_key):
+                has_viewed = True
+
+            if not has_viewed:
+                # Tăng view trong DB thực tế
+                article.view_count += 1
+                db.add(article)
+                await db.commit()
+                
+                # Lưu trạng thái xem vào Redis để chống spam
+                if guest_key:
+                    await redis_client.set(guest_key, "1", ex=86400) # 24 giờ cho Guest
+                if ip_key:
+                    await redis_client.set(ip_key, "1", ex=180)     # 3 phút cho IP
+        else:
+            article.view_count += 1
+            db.add(article)
+            await db.commit()
 
         # Apply translation phẳng
         self._apply_translation(article, lang=lang)

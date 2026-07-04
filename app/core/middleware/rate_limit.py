@@ -105,13 +105,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _get_user_id_from_token(self, request: Request) -> str | None:
         """
-        Extracts User ID (sub) from Authorization JWT token if valid.
+        Extracts User ID (sub) from access_token cookie or Authorization JWT token if valid.
         """
-        auth_header = request.headers.get("authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
+        token = request.cookies.get("access_token")
+        if not token:
+            auth_header = request.headers.get("authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                
+        if not token:
             return None
             
-        token = auth_header.split(" ")[1]
         try:
             payload = decode_access_token(token)
             return str(payload.get("sub"))
@@ -137,12 +141,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         limit, window_ms, category = self._get_limit_for_path(path)
 
         # 2. Determine Identifier (User ID if logged in, otherwise Client IP)
+        # Chúng ta đính kèm thêm path vào key để giới hạn riêng cho từng endpoint cụ thể
         user_id = self._get_user_id_from_token(request)
         if user_id:
-            identifier_key = f"ratelimit:{category}:user:{user_id}"
+            identifier_key = f"ratelimit:{category}:user:{user_id}:{path}"
         else:
             client_ip = self._extract_client_ip(request)
-            identifier_key = f"ratelimit:{category}:ip:{client_ip}"
+            identifier_key = f"ratelimit:{category}:ip:{client_ip}:{path}"
 
         # 3. Apply Sliding Window Limit using Redis Script
         logger.info(f"RateLimit Check | Path: {path} | Category: {category} | Limit: {limit} | Key: {identifier_key} | User ID: {user_id}")

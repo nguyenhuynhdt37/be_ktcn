@@ -7,6 +7,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.middleware.security import SecurityHeadersMiddleware, RequestSizeLimiterMiddleware
 from app.core.middleware.rate_limit import RateLimitMiddleware
+from app.core.middleware.visitor_counter import VisitorCounterMiddleware
 
 from app.core.config import settings
 from app.core.database import engine
@@ -33,6 +34,7 @@ from app.modules.translation import translation_router, translation_service
 from app.modules.ai_hub.routers import ai_hub_router
 from app.modules.auth.routers.profile import router as profile_router
 from app.modules.search.router import router as search_router
+from app.modules.statistics.router import router as statistics_portal_router
 
 from app.shared.redis import close_redis, init_redis
 
@@ -51,6 +53,7 @@ from app.modules.degree.models import Degree, DegreeTranslation
 from app.modules.banner.models import Banner
 from app.modules.language.models import Language
 from app.modules.ai_hub.models import AIRequestLog
+from app.modules.statistics.models import SystemStatistics
 
 
 # Initialize global logging configuration
@@ -68,6 +71,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Startup: Warmup translation model (NLLB-200)
     translation_service.warmup()
+    
+    # Startup: Initialize default statistics
+    from app.modules.statistics.service import statistics_service
+    from app.core.database import SessionLocal
+    async with SessionLocal() as db:
+        await statistics_service.init_statistics(db)
     
     yield
     # Shutdown: Clean up connections
@@ -93,6 +102,7 @@ app.add_middleware(
 app.add_middleware(RequestSizeLimiterMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(VisitorCounterMiddleware)
 
 # Configure CORS (Cross-Origin Resource Sharing)
 if settings.ENV == "development":
@@ -151,4 +161,5 @@ app.include_router(language_portal_router, prefix=f"{settings.API_V1_STR}/portal
 app.include_router(translation_router, prefix=f"{settings.API_V1_STR}/translation", tags=["translation"])
 app.include_router(ai_hub_router, prefix=f"{settings.API_V1_STR}/ai-hub", tags=["ai-hub"])
 app.include_router(search_router, prefix=f"{settings.API_V1_STR}/admin/search", tags=["admin-search"])
+app.include_router(statistics_portal_router, prefix=settings.API_V1_STR)
 

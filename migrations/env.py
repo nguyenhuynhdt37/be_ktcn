@@ -24,6 +24,7 @@ from app.modules.degree.models import *  # noqa: F401, F403
 from app.modules.banner.models import *  # noqa: F401, F403
 from app.modules.language.models import *  # noqa: F401, F403
 from app.modules.ai_hub.models import *  # noqa: F401, F403
+from app.modules.statistics.models import *  # noqa: F401, F403
 
 
 

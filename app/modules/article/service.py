@@ -135,10 +135,11 @@ class ArticleService:
         page_size: int = 10,
         search: Optional[str] = None,
         category_id: Optional[uuid.UUID] = None,
+        category_slugs: Optional[list[str]] = None,
+        exclude_category_slugs: Optional[list[str]] = None,
         author_id: Optional[uuid.UUID] = None,
         tag_ids: Optional[list[uuid.UUID]] = None,
         status: Optional[ArticleStatus] = None,
-        is_featured: Optional[bool] = None,
         is_pinned: Optional[bool] = None,
         is_draft: Optional[bool] = False,
         created_from: Optional[datetime] = None,
@@ -154,6 +155,17 @@ class ArticleService:
         Query danh sách bài viết từ database với phân trang, lọc và sắp xếp động tối ưu (Admin CMS).
         """
         builder = ArticleQueryBuilder(db)
+
+        # Lấy language_id cho resolved_translation
+        from app.modules.language.models import Language
+        lang_res = await db.execute(select(Language.id).where(Language.code == lang))
+        lang_id = lang_res.scalar()
+        if not lang_id:
+            lang_res = await db.execute(select(Language.id).where(Language.code == "vi"))
+            lang_id = lang_res.scalar()
+
+        if lang_id:
+            builder.resolve_translation(lang_id)
         
         # Áp dụng Admin scope và eager load quan hệ
         builder.admin_scope(deleted=deleted)
@@ -162,9 +174,10 @@ class ArticleService:
         # Đóng gói filter params
         filter_params = ArticleFilterParams(
             category_id=category_id,
+            category_slugs=category_slugs,
+            exclude_category_slugs=exclude_category_slugs,
             author_id=author_id,
             tag_ids=tag_ids,
-            is_featured=is_featured,
             is_pinned=is_pinned,
             published_from=published_from,
             published_to=published_to,
@@ -184,7 +197,7 @@ class ArticleService:
         # Tìm kiếm Generic
         if search:
             builder.search(
-                fields=[Article.title, Article.slug],
+                fields=[ArticleTranslation.title, ArticleTranslation.slug],
                 keyword=search
             )
             
@@ -519,7 +532,7 @@ class ArticleService:
         current_user: Any,
     ) -> Article:
         """
-        Cập nhật nhanh các thuộc tính đặc biệt (is_featured, is_pinned) của bài viết.
+        Cập nhật nhanh các thuộc tính đặc biệt (is_pinned) của bài viết.
         """
         from app.modules.category.models import CategoryTranslation
         from app.modules.tag.models import TagTranslation
@@ -547,10 +560,6 @@ class ArticleService:
             raise NotFoundException(message="Không tìm thấy bài viết hoặc bài viết đã bị xóa.")
 
         changes = {}
-        if payload.is_featured is not None:
-            changes["is_featured"] = {"old": article.is_featured, "new": payload.is_featured}
-            article.is_featured = payload.is_featured
-        
         if payload.is_pinned is not None:
             changes["is_pinned"] = {"old": article.is_pinned, "new": payload.is_pinned}
             article.is_pinned = payload.is_pinned
@@ -665,7 +674,6 @@ class ArticleService:
             thumbnail_object_key=payload.thumbnail_object_key,
             cover_object_key=payload.cover_object_key,
             status=payload.status,
-            is_featured=payload.is_featured,
             is_pinned=payload.is_pinned,
             is_draft=payload.is_draft,
             word_count=word_count,
@@ -1047,8 +1055,6 @@ class ArticleService:
             article.status = payload.status
         if payload.is_draft is not None:
             article.is_draft = payload.is_draft
-        if payload.is_featured is not None:
-            article.is_featured = payload.is_featured
         if payload.is_pinned is not None:
             article.is_pinned = payload.is_pinned
         if payload.thumbnail_object_key is not None:
@@ -1201,6 +1207,7 @@ class ArticleService:
         category_slug: str,
         page: int = 1,
         page_size: int = 10,
+        lang: str = "vi",
     ) -> Tuple[list[Article], int]:
         """
         Query danh sách bài viết công khai thuộc một danh mục cụ thể cho Portal FE Client.
@@ -1208,15 +1215,11 @@ class ArticleService:
         """
         # 1. Tìm Category theo slug (hỗ trợ slug gốc hoặc slug bản dịch)
         from app.modules.category.models import CategoryTranslation
-        from sqlalchemy import or_
         cat_stmt = (
             select(Category)
             .outerjoin(CategoryTranslation)
             .where(
-                or_(
-                    Category.slug == category_slug,
-                    CategoryTranslation.slug == category_slug
-                ),
+                CategoryTranslation.slug == category_slug,
                 Category.deleted_at.is_(None)
             )
             .limit(1)
@@ -1253,35 +1256,12 @@ class ArticleService:
         count_res = await db.execute(count_stmt)
         total = count_res.scalar() or 0
 
-        # 3. Nạp trước các quan hệ (Eager Loading) & Chỉ lấy các cột cần thiết (load_only)
+        # 3. Nạp trước các quan hệ (Eager Loading)
         stmt = stmt.options(
-            joinedload(Article.category).load_only(Category.id, Category.name, Category.slug),
+            joinedload(Article.category).load_only(Category.id),
             joinedload(Article.author).joinedload(User.avatar),
             joinedload(Article.author).load_only(User.id, User.username, User.full_name, User.avatar_url),
-            selectinload(Article.tags).load_only(Tag.id, Tag.name, Tag.slug, Tag.color),
-            load_only(
-                Article.id,
-                Article.title,
-                Article.slug,
-                Article.excerpt,
-                Article.thumbnail_object_key,
-                Article.status,
-                Article.is_featured,
-                Article.is_pinned,
-                Article.is_draft,
-                Article.view_count,
-                Article.created_at,
-                Article.publish_at,
-                Article.published_at,
-                # SEO & OpenGraph fields
-                Article.seo_title,
-                Article.seo_description,
-                Article.canonical_url,
-                Article.robots,
-                Article.og_title,
-                Article.og_description,
-                Article.og_image,
-            )
+            selectinload(Article.tags).load_only(Tag.id, Tag.color)
         )
 
         # 4. Sắp xếp: Ghim lên đầu (is_pinned DESC), sau đó đến ngày công bố mới nhất (publish_at DESC)
@@ -1295,6 +1275,16 @@ class ArticleService:
         result = await db.execute(stmt)
         items = list(result.scalars().all())
 
+        # Apply translations phẳng cho kết quả đầu ra
+        for item in items:
+            self._apply_translation(item, lang=lang)
+            if item.category:
+                from app.modules.category.service import category_service
+                category_service._apply_translation(item.category, lang=lang)
+            for tag in item.tags:
+                from app.modules.tag.service import tag_service
+                tag_service._apply_translation(tag, lang=lang)
+
         return items, total
 
     async def get_article_by_slug_portal(
@@ -1302,10 +1292,13 @@ class ArticleService:
         db: AsyncSession,
         slug: str,
         lang: str = "vi",
+        guest_uuid: Optional[str] = None,
+        client_ip: Optional[str] = None,
+        redis_client: Optional[Any] = None,
     ) -> Article:
         """
         Lấy chi tiết một bài viết công khai theo slug cho Portal FE Client.
-        Tự động tăng view_count của bài viết lên 1.
+        Tự động tăng view_count của bài viết lên 1 nếu là lượt xem mới (kiểm tra qua Redis).
         """
         now = datetime.now(timezone.utc)
         from app.modules.language.models import Language
@@ -1347,10 +1340,33 @@ class ArticleService:
         if not article:
             raise NotFoundException(message=f"Không tìm thấy bài viết hoặc bài viết chưa được công bố.")
 
-        # 2. Tăng view_count tự động
-        article.view_count += 1
-        db.add(article)
-        await db.flush()
+        # 2. Tăng view_count tự động nếu là lượt xem mới
+        if redis_client:
+            guest_key = f"view_limit:article:{article.id}:guest:{guest_uuid}" if guest_uuid else None
+            ip_key = f"view_limit:article:{article.id}:ip:{client_ip}" if client_ip else None
+            
+            # Kiểm tra xem guest_uuid hoặc IP đã xem bài viết này chưa
+            has_viewed = False
+            if guest_key and await redis_client.exists(guest_key):
+                has_viewed = True
+            if not has_viewed and ip_key and await redis_client.exists(ip_key):
+                has_viewed = True
+
+            if not has_viewed:
+                # Tăng view trong DB thực tế
+                article.view_count += 1
+                db.add(article)
+                await db.commit()
+                
+                # Lưu trạng thái xem vào Redis để chống spam
+                if guest_key:
+                    await redis_client.set(guest_key, "1", ex=86400) # 24 giờ cho Guest
+                if ip_key:
+                    await redis_client.set(ip_key, "1", ex=180)     # 3 phút cho IP
+        else:
+            article.view_count += 1
+            db.add(article)
+            await db.commit()
 
         # Apply translation phẳng
         self._apply_translation(article, lang=lang)
@@ -1371,9 +1387,10 @@ class ArticleService:
         page_size: int = 10,
         search: Optional[str] = None,
         category_slug: Optional[str] = None,
+        category_slugs: Optional[list[str]] = None,
+        exclude_category_slugs: Optional[list[str]] = None,
         tag_slug: Optional[str] = None,
         author_username: Optional[str] = None,
-        is_featured: Optional[bool] = None,
         is_pinned: Optional[bool] = None,
         has_thumbnail: Optional[bool] = None,
         published_from: Optional[datetime] = None,
@@ -1406,9 +1423,10 @@ class ArticleService:
         # Đóng gói filter params
         filter_params = ArticleFilterParams(
             category_slug=category_slug,
+            category_slugs=category_slugs,
+            exclude_category_slugs=exclude_category_slugs,
             tag_slug=tag_slug,
             author_username=author_username,
-            is_featured=is_featured,
             is_pinned=is_pinned,
             has_thumbnail=has_thumbnail,
             published_from=published_from,
@@ -1419,7 +1437,7 @@ class ArticleService:
         # Tìm kiếm Generic
         if search:
             builder.search(
-                fields=[Article.title, Article.excerpt, Article.content],
+                fields=[ArticleTranslation.title, ArticleTranslation.excerpt, ArticleTranslation.content],
                 keyword=search
             )
             

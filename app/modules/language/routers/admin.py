@@ -1,5 +1,4 @@
 import uuid
-
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,37 +7,13 @@ from app.modules.audit.service import log_action
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import UserResponse
 from app.modules.language.schemas import (
-    LanguageCreate,
     LanguageResponse,
-    LanguageUpdate,
-    PortalLanguageResponse,
     LanguageReorderRequest,
 )
 from app.modules.language.service import language_service
 
 admin_router = APIRouter()
-portal_router = APIRouter()
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-# PUBLIC PORTAL API
-# ──────────────────────────────────────────────────────────────────────────────
-
-@portal_router.get("", response_model=list[PortalLanguageResponse])
-async def list_portal_languages(
-    db: AsyncSession = Depends(get_db),
-) -> list[PortalLanguageResponse]:
-    """
-    Lấy danh sách các ngôn ngữ đang hoạt động của hệ thống (Public API).
-    Chỉ trả về các thông tin cơ bản: id, code, name, native_name, is_default.
-    """
-    languages = await language_service.list_portal_languages(db)
-    return [PortalLanguageResponse.model_validate(lang) for lang in languages]
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# ADMIN APIs (Yêu cầu Token quản trị)
-# ──────────────────────────────────────────────────────────────────────────────
 
 @admin_router.get("", response_model=list[LanguageResponse])
 async def list_languages(

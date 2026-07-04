@@ -109,7 +109,7 @@ async def test_portal_languages_api(client: AsyncClient):
 async def test_admin_language_api_flow(client: AsyncClient, admin_headers: dict):
     """Test luồng API Admin khả dụng (List, Get, Enable, Disable, Set Default)."""
     # 1. GET - Lấy danh sách ngôn ngữ
-    list_res = await client.get("/api/v1/languages", headers=admin_headers)
+    list_res = await client.get("/api/v1/admin/languages", headers=admin_headers)
     assert list_res.status_code == 200
     languages = list_res.json()
     assert len(languages) == 2  # Luôn có 2 ngôn ngữ hệ thống vi, en
@@ -118,34 +118,34 @@ async def test_admin_language_api_flow(client: AsyncClient, admin_headers: dict)
     en_lang = next(item for item in languages if item["code"] == "en")
     
     # 2. GET - Chi tiết
-    detail_res = await client.get(f"/api/v1/languages/{en_lang['id']}", headers=admin_headers)
+    detail_res = await client.get(f"/api/v1/admin/languages/{en_lang['id']}", headers=admin_headers)
     assert detail_res.status_code == 200
     assert detail_res.json()["code"] == "en"
 
     # 3. PATCH - Disable en
-    disable_res = await client.patch(f"/api/v1/languages/{en_lang['id']}/disable", headers=admin_headers)
+    disable_res = await client.patch(f"/api/v1/admin/languages/{en_lang['id']}/disable", headers=admin_headers)
     assert disable_res.status_code == 200
     assert disable_res.json()["is_active"] is False
 
     # 4. PATCH - Enable en
-    enable_res = await client.patch(f"/api/v1/languages/{en_lang['id']}/enable", headers=admin_headers)
+    enable_res = await client.patch(f"/api/v1/admin/languages/{en_lang['id']}/enable", headers=admin_headers)
     assert enable_res.status_code == 200
     assert enable_res.json()["is_active"] is True
 
     # 5. PATCH - Set Default en
-    set_default_res = await client.patch(f"/api/v1/languages/{en_lang['id']}/set-default", headers=admin_headers)
+    set_default_res = await client.patch(f"/api/v1/admin/languages/{en_lang['id']}/set-default", headers=admin_headers)
     assert set_default_res.status_code == 200
     assert set_default_res.json()["is_default"] is True
 
     # Trả lại default cho vi
-    await client.patch(f"/api/v1/languages/{vi_lang['id']}/set-default", headers=admin_headers)
+    await client.patch(f"/api/v1/admin/languages/{vi_lang['id']}/set-default", headers=admin_headers)
 
 
 @pytest.mark.asyncio
 async def test_reorder_languages_api(client: AsyncClient, admin_headers: dict):
     """Test API cập nhật lại sort_order của các ngôn ngữ (kéo thả)."""
     # 1. Lấy danh sách ngôn ngữ hiện tại để có ID
-    list_res = await client.get("/api/v1/languages", headers=admin_headers)
+    list_res = await client.get("/api/v1/admin/languages", headers=admin_headers)
     assert list_res.status_code == 200
     languages = list_res.json()
     assert len(languages) >= 2
@@ -162,13 +162,13 @@ async def test_reorder_languages_api(client: AsyncClient, admin_headers: dict):
     }
     
     # 3. Call API reorder
-    reorder_res = await client.put("/api/v1/languages/reorder", json=reorder_payload, headers=admin_headers)
+    reorder_res = await client.put("/api/v1/admin/languages/reorder", json=reorder_payload, headers=admin_headers)
     assert reorder_res.status_code == 200
     assert reorder_res.json()["success"] is True
     assert reorder_res.json()["reordered"] == 2
     
     # 4. Lấy lại danh sách kiểm tra xem sort_order đã được cập nhật chưa
-    new_list_res = await client.get("/api/v1/languages", headers=admin_headers)
+    new_list_res = await client.get("/api/v1/admin/languages", headers=admin_headers)
     new_languages = {item["id"]: item for item in new_list_res.json()}
     
     assert new_languages[lang1["id"]]["sort_order"] == 100

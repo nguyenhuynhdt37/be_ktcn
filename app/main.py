@@ -3,15 +3,20 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+
+from app.core.middleware.security import SecurityHeadersMiddleware, RequestSizeLimiterMiddleware
+from app.core.middleware.rate_limit import RateLimitMiddleware
+from app.core.middleware.visitor_counter import VisitorCounterMiddleware
 
 from app.core.config import settings
 from app.core.database import engine
 from app.core.exceptions import setup_exception_handlers
 from app.core.logger import setup_logging
 from app.modules.auth.router import router as auth_router, users_router
-from app.modules.audit.router import audit_router
-from app.modules.health.router import router as health_router
-from app.modules.media.router import media_router
+from app.modules.audit.routers import admin_router as audit_router
+from app.modules.health.routers import portal_router as health_router
+from app.modules.media.routers import admin_router as media_admin_router
 from app.modules.menu.routers import admin_router as menu_admin_router, portal_router as menu_portal_router
 from app.modules.category.routers import admin_router as category_admin_router, portal_router as category_portal_router
 from app.modules.article.routers.admin import router as article_admin_router
@@ -21,12 +26,15 @@ from app.modules.tag.routers.portal import router as tag_portal_router
 from app.modules.department.routers import department_admin_router, department_portal_router
 from app.modules.position.routers import position_admin_router, position_portal_router
 from app.modules.staff.routers import staff_admin_router, staff_portal_router
-from app.modules.academic_title.router import admin_router as academic_title_admin_router, portal_router as academic_title_portal_router
-from app.modules.degree.router import admin_router as degree_admin_router, portal_router as degree_portal_router
-from app.modules.banner.router import banners_router
-from app.modules.language.router import admin_router as language_admin_router, portal_router as language_portal_router
+from app.modules.academic_title.routers import admin_router as academic_title_admin_router, portal_router as academic_title_portal_router
+from app.modules.degree.routers import admin_router as degree_admin_router, portal_router as degree_portal_router
+from app.modules.banner.routers import admin_router as banner_admin_router, portal_router as banner_portal_router
+from app.modules.language.routers import admin_router as language_admin_router, portal_router as language_portal_router
 from app.modules.translation import translation_router, translation_service
 from app.modules.ai_hub.routers import ai_hub_router
+from app.modules.auth.routers.profile import router as profile_router
+from app.modules.search.router import router as search_router
+from app.modules.statistics.router import router as statistics_portal_router
 
 from app.shared.redis import close_redis, init_redis
 
@@ -45,6 +53,7 @@ from app.modules.degree.models import Degree, DegreeTranslation
 from app.modules.banner.models import Banner
 from app.modules.language.models import Language
 from app.modules.ai_hub.models import AIRequestLog
+from app.modules.statistics.models import SystemStatistics
 
 
 # Initialize global logging configuration
@@ -63,6 +72,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup: Warmup translation model (NLLB-200)
     translation_service.warmup()
     
+    # Startup: Initialize default statistics
+    from app.modules.statistics.service import statistics_service
+    from app.core.database import SessionLocal
+    async with SessionLocal() as db:
+        await statistics_service.init_statistics(db)
+    
     yield
     # Shutdown: Clean up connections
     await close_redis()
@@ -78,6 +93,16 @@ app = FastAPI(
     docs_url="/docs" if settings.ENV != "production" else None,
     redoc_url="/redoc" if settings.ENV != "production" else None,
 )
+
+# Configure Security Middlewares
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.ALLOWED_HOSTS
+)
+app.add_middleware(RequestSizeLimiterMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(VisitorCounterMiddleware)
 
 # Configure CORS (Cross-Origin Resource Sharing)
 if settings.ENV == "development":
@@ -107,9 +132,10 @@ app.include_router(health_router)
 # All standard modules are prefixed with /api/v1
 app.include_router(auth_router, prefix=settings.API_V1_STR)
 app.include_router(users_router, prefix=settings.API_V1_STR)
+app.include_router(profile_router, prefix=f"{settings.API_V1_STR}/admin/profile", tags=["admin-profile"])
 
-app.include_router(media_router, prefix=f"{settings.API_V1_STR}/media", tags=["media"])
-app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/audit-logs", tags=["audit"])
+app.include_router(media_admin_router, prefix=f"{settings.API_V1_STR}/admin/media", tags=["admin-media"])
+app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/admin/audit-logs", tags=["admin-audit-logs"])
 app.include_router(menu_admin_router, prefix=f"{settings.API_V1_STR}/admin/menus", tags=["admin-menus"])
 app.include_router(menu_portal_router, prefix=f"{settings.API_V1_STR}/portal/menus", tags=["portal-menus"])
 app.include_router(category_admin_router, prefix=f"{settings.API_V1_STR}/admin/categories", tags=["admin-categories"])
@@ -124,13 +150,16 @@ app.include_router(position_admin_router, prefix=f"{settings.API_V1_STR}/admin/p
 app.include_router(position_portal_router, prefix=f"{settings.API_V1_STR}/portal/positions", tags=["portal-positions"])
 app.include_router(staff_admin_router, prefix=f"{settings.API_V1_STR}/admin/staffs", tags=["admin-staffs"])
 app.include_router(staff_portal_router, prefix=f"{settings.API_V1_STR}/portal/staffs", tags=["portal-staffs"])
-app.include_router(academic_title_admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin-academic-titles"])
-app.include_router(academic_title_portal_router, prefix=f"{settings.API_V1_STR}/portal", tags=["portal-academic-titles"])
-app.include_router(degree_admin_router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin-degrees"])
-app.include_router(degree_portal_router, prefix=f"{settings.API_V1_STR}/portal", tags=["portal-degrees"])
-app.include_router(banners_router, prefix=f"{settings.API_V1_STR}/banners", tags=["banners"])
-app.include_router(language_admin_router, prefix=f"{settings.API_V1_STR}/languages", tags=["languages"])
+app.include_router(academic_title_admin_router, prefix=f"{settings.API_V1_STR}/admin/academic-titles", tags=["admin-academic-titles"])
+app.include_router(academic_title_portal_router, prefix=f"{settings.API_V1_STR}/portal/academic-titles", tags=["portal-academic-titles"])
+app.include_router(degree_admin_router, prefix=f"{settings.API_V1_STR}/admin/degrees", tags=["admin-degrees"])
+app.include_router(degree_portal_router, prefix=f"{settings.API_V1_STR}/portal/degrees", tags=["portal-degrees"])
+app.include_router(banner_admin_router, prefix=f"{settings.API_V1_STR}/admin/banners", tags=["admin-banners"])
+app.include_router(banner_portal_router, prefix=f"{settings.API_V1_STR}/portal/banners", tags=["portal-banners"])
+app.include_router(language_admin_router, prefix=f"{settings.API_V1_STR}/admin/languages", tags=["admin-languages"])
 app.include_router(language_portal_router, prefix=f"{settings.API_V1_STR}/portal/languages", tags=["portal-languages"])
 app.include_router(translation_router, prefix=f"{settings.API_V1_STR}/translation", tags=["translation"])
 app.include_router(ai_hub_router, prefix=f"{settings.API_V1_STR}/ai-hub", tags=["ai-hub"])
+app.include_router(search_router, prefix=f"{settings.API_V1_STR}/admin/search", tags=["admin-search"])
+app.include_router(statistics_portal_router, prefix=settings.API_V1_STR)
 

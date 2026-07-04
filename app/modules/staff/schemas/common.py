@@ -19,6 +19,16 @@ def build_staff_resolved(data: Any) -> dict:
     Helper chuyển đổi object Staff db sang dictionary phẳng
     chứa cả translations và is_translated an toàn.
     """
+    from app.core.config import settings
+    protocol = "https" if settings.MINIO_SECURE else "http"
+
+    def transform_url(v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        if v.startswith("http://") or v.startswith("https://") or v.startswith("data:"):
+            return v
+        return f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{v}"
+
     if isinstance(data, dict):
         translations = data.get("translations") or {}
         is_translated = data.get("is_translated") or {}
@@ -31,6 +41,8 @@ def build_staff_resolved(data: Any) -> dict:
                 )
         data["translations"] = translations
         data["is_translated"] = is_translated
+        if "avatar_object_key" in data:
+            data["avatar_object_key"] = transform_url(data["avatar_object_key"])
         return data
 
     translations_dict = {
@@ -65,7 +77,7 @@ def build_staff_resolved(data: Any) -> dict:
         "full_name": safe_getattr(data, "full_name", ""),
         "english_name": safe_getattr(data, "english_name", None),
         "slug": safe_getattr(data, "slug", ""),
-        "avatar_object_key": safe_getattr(data, "avatar_object_key", None),
+        "avatar_object_key": transform_url(safe_getattr(data, "avatar_object_key", None)),
         "email": safe_getattr(data, "email", None),
         "phone": safe_getattr(data, "phone", None),
         "website": safe_getattr(data, "website", None),

@@ -106,7 +106,7 @@ class CategoryTranslation(BaseModel):
         "Category", back_populates="translations"
     )
     language: Mapped["Language"] = relationship(
-        "Language", back_populates="translations"
+        "Language", back_populates="translations", lazy="selectin"
     )
 
     # Ràng buộc Độc bản (Unique Constraints) & Chỉ mục (Explicit Indexes)

@@ -142,32 +142,24 @@ class PositionService:
         lang_map = await self.get_language_map(db)
 
         if data.sort_order is not None and data.sort_order != pos.sort_order:
-            old_sort = pos.sort_order
-            new_sort = data.sort_order
-            from sqlalchemy import update
-            if new_sort < old_sort:
-                await db.execute(
-                    update(Position)
-                    .where(
-                        Position.deleted_at.is_(None),
-                        Position.sort_order >= new_sort,
-                        Position.sort_order < old_sort,
-                        Position.id != pos.id
-                    )
-                    .values(sort_order=Position.sort_order + 1)
-                )
-            else:
-                await db.execute(
-                    update(Position)
-                    .where(
-                        Position.deleted_at.is_(None),
-                        Position.sort_order > old_sort,
-                        Position.sort_order <= new_sort,
-                        Position.id != pos.id
-                    )
-                    .values(sort_order=Position.sort_order - 1)
-                )
-            pos.sort_order = new_sort
+            # 1. Lấy tất cả chức vụ khác sắp xếp theo sort_order tăng dần
+            stmt_other = (
+                select(Position)
+                .where(Position.deleted_at.is_(None), Position.id != pos.id)
+                .order_by(Position.sort_order.asc(), Position.created_at.desc())
+            )
+            res_other = await db.execute(stmt_other)
+            other_positions = list(res_other.scalars().all())
+            
+            # 2. Giới hạn index mới
+            new_sort = max(0, min(data.sort_order, len(other_positions)))
+            
+            # 3. Chèn chức vụ hiện tại vào index mới
+            other_positions.insert(new_sort, pos)
+            
+            # 4. Gán lại sort_order liên tục để chuẩn hóa thứ tự
+            for index, p in enumerate(other_positions):
+                p.sort_order = index
         if data.is_active is not None:
             pos.is_active = data.is_active
 
@@ -210,6 +202,15 @@ class PositionService:
             raise BadRequestException("Không thể xóa chức vụ này vì đang có giảng viên đảm nhiệm")
 
         pos = await self.get_position(db, position_id)
+        
+        # Dồn thứ tự của các chức vụ đứng sau
+        from sqlalchemy import update
+        await db.execute(
+            update(Position)
+            .where(Position.deleted_at.is_(None), Position.sort_order > pos.sort_order)
+            .values(sort_order=Position.sort_order - 1)
+        )
+        
         pos.deleted_at = datetime.now(UTC)
         await db.flush()
 

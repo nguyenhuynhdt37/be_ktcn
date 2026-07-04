@@ -3,36 +3,23 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.modules.auth.dependencies import get_current_user
-from app.modules.academic_title.schemas import AcademicTitleAdminResponse, AcademicTitlePortalResponse
+from app.modules.academic_title.schemas.portal import AcademicTitlePortalResponse
 from app.modules.academic_title.service import AcademicTitleService
 
-admin_router = APIRouter(prefix="/academic-titles", tags=["Admin Academic Titles"])
-portal_router = APIRouter(prefix="/academic-titles", tags=["Portal Academic Titles"])
+portal_router = APIRouter()
 
 academic_title_service = AcademicTitleService()
-
-
-@admin_router.get("", response_model=List[AcademicTitleAdminResponse])
-async def list_academic_titles_admin(
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
-):
-    """Lấy toàn bộ danh sách Học hàm cho Admin quản trị."""
-    return await academic_title_service.list_academic_titles(db, lang="vi")
 
 
 @portal_router.get("", response_model=List[AcademicTitlePortalResponse])
 async def list_academic_titles_portal(
     lang: str = "vi",
     accept_language: str = Header(None, alias="Accept-Language"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Lấy danh sách Học hàm hoạt động phẳng (đã dịch) cho Portal Website."""
-    # Xác định ngôn ngữ ưu tiên
     preferred_lang = lang
     if accept_language and not lang:
-        # Parse Accept-Language cơ bản (ví dụ: en-US,en;q=0.9 -> en)
         first_lang = accept_language.split(",")[0].split(";")[0].split("-")[0].strip().lower()
         if first_lang in ["vi", "en"]:
             preferred_lang = first_lang

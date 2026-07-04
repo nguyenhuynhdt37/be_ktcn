@@ -172,7 +172,6 @@ def build_article_resolved_before_validation(data: Any) -> Any:
         "author_id": safe_getattr(data, "author_id", None),
         "status": safe_getattr(data, "status", ArticleStatus.DRAFT),
         "is_draft": safe_getattr(data, "is_draft", True),
-        "is_featured": safe_getattr(data, "is_featured", False),
         "is_pinned": safe_getattr(data, "is_pinned", False),
         "sort_order": safe_getattr(data, "sort_order", 0),
         "view_count": safe_getattr(data, "view_count", 0),
@@ -280,7 +279,6 @@ class ArticleStatsResponse(BaseModel):
 
 
 class ArticleAttributesUpdateRequest(BaseModel):
-    is_featured: Optional[bool] = None
     is_pinned: Optional[bool] = None
 
 

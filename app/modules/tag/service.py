@@ -332,5 +332,27 @@ class TagService:
 
         return slug_candidate
 
+    async def check_slug_uniqueness(
+        self, db: AsyncSession, slug: str, lang_code: str = "vi", exclude_id: Optional[uuid.UUID] = None
+    ) -> dict:
+        """Kiểm tra xem slug của Tag có trùng lặp không và trả về đề xuất slug mới không trùng."""
+        from app.modules.language.models import Language
+        # Lấy language_id từ code
+        q = select(Language.id).where(Language.code == lang_code)
+        res = await db.execute(q)
+        lang_id = res.scalar_one_or_none()
+        if not lang_id:
+            # Fallback lấy vi
+            q_vi = select(Language.id).where(Language.code == "vi")
+            res_vi = await db.execute(q_vi)
+            lang_id = res_vi.scalar_one_or_none()
+
+        suggested = await self._resolve_unique_slug(db, slug, lang_id, current_tag_id=exclude_id)
+        exists = (suggested != slug)
+        return {
+            "exists": exists,
+            "suggested_slug": suggested
+        }
+
 
 tag_service = TagService()

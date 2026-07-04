@@ -1,16 +1,16 @@
 import uuid
 from typing import Optional, Any
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
-class DegreeTranslationResponse(BaseModel):
+class AcademicTitleTranslationResponse(BaseModel):
     name: str
     abbreviation: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class DegreeAdminResponse(BaseModel):
+class AcademicTitleAdminResponse(BaseModel):
     """Response cho Admin CMS, chứa cấu trúc translations đầy đủ."""
     id: uuid.UUID
     sort_order: int
@@ -26,7 +26,7 @@ class DegreeAdminResponse(BaseModel):
     def resolve_translations(cls, data: Any) -> Any:
         if isinstance(data, dict):
             return data
-        
+
         # Chuyển đổi list translations sang dict
         trans_dict = {}
         raw_trans = getattr(data, "translations", []) or []
@@ -37,7 +37,7 @@ class DegreeAdminResponse(BaseModel):
                     "name": t.name,
                     "abbreviation": t.abbreviation
                 }
-        
+
         # Dịch phẳng tên theo default "vi" để hiển thị mặc định
         matched = None
         for t in raw_trans:
@@ -46,7 +46,7 @@ class DegreeAdminResponse(BaseModel):
                 break
         if not matched and raw_trans:
             matched = raw_trans[0]
-            
+
         return {
             "id": data.id,
             "sort_order": data.sort_order,
@@ -55,13 +55,3 @@ class DegreeAdminResponse(BaseModel):
             "name": matched.name if matched else None,
             "abbreviation": matched.abbreviation if matched else None
         }
-
-
-class DegreePortalResponse(BaseModel):
-    """Response phẳng (đã dịch) cho Portal Website."""
-    id: uuid.UUID
-    name: str
-    abbreviation: Optional[str] = None
-    sort_order: int
-
-    model_config = ConfigDict(from_attributes=True)

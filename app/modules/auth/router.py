@@ -37,11 +37,19 @@ users_router = APIRouter(prefix="/users", tags=["Users"])
 auth_service = AuthService()
 
 
-def set_refresh_cookie(response: Response, refresh_token: str) -> None:
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     """
-    Helper to set the secure, HttpOnly refresh token cookie.
-    Sets expiration for 8 days matching the database expiration.
+    Helper to set the secure, HttpOnly access and refresh token cookies.
     """
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=settings.ENV == "production",
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -62,7 +70,7 @@ async def login(
     redis_client: aioredis.Redis = Depends(get_redis),
 ) -> Token:
     """
-    Log in with username and password to get a short-lived access token in body
+    Log in with username and password to get a short-lived access token in HttpOnly cookie
     and a secure refresh token in HttpOnly cookie.
     Rate limited: 5 failed attempts per minute per IP.
     """
@@ -97,7 +105,7 @@ async def login(
     await log_action(db, login_actor, "AUTH_LOGIN", "session", None, {"ip": ip_address}, request)
     await db.commit()
 
-    set_refresh_cookie(response, raw_refresh_token)
+    set_auth_cookies(response, token_data.access_token, raw_refresh_token)
     return token_data
 
 
@@ -125,7 +133,7 @@ async def refresh_token(
         db, refresh_token, ip_address, user_agent
     )
 
-    set_refresh_cookie(response, new_raw_refresh_token)
+    set_auth_cookies(response, token_data.access_token, new_raw_refresh_token)
     return token_data
 
 
@@ -139,7 +147,7 @@ async def logout(
 ) -> dict[str, bool]:
     """
     Logs out the user by revoking the current session's refresh token.
-    Clears the HttpOnly cookie.
+    Clears both access and refresh token cookies.
     """
     if refresh_token:
         await auth_service.logout(db, refresh_token)
@@ -147,6 +155,7 @@ async def logout(
     await log_action(db, current_user, "AUTH_LOGOUT", "session", None, None, request)
     await db.commit()
 
+    response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
     return {"success": True}
 

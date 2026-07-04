@@ -16,6 +16,74 @@ from app.core.exceptions import BadRequestException, NotFoundException
 from app.modules.media.models import MediaItem
 
 
+def validate_magic_bytes(content: bytes, content_type: str) -> bool:
+    """
+    Validates that the file contents match the expected MIME type signature (Magic Bytes).
+    """
+    if not content:
+        return False
+        
+    # Standard signatures (Magic Bytes)
+    if content_type.startswith("image/png"):
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
+    elif content_type.startswith("image/jpeg") or content_type.startswith("image/jpg"):
+        return content.startswith(b"\xff\xd8\xff")
+    elif content_type.startswith("image/gif"):
+        return content.startswith(b"GIF87a") or content.startswith(b"GIF89a")
+    elif content_type == "application/pdf":
+        return content.startswith(b"%PDF")
+    elif content_type == "image/svg+xml" or content_type.endswith("svg+xml"):
+        try:
+            text = content[:1000].decode("utf-8", errors="ignore").lower()
+            return "<svg" in text
+        except Exception:
+            return False
+            
+    # Allow other files without validation (like docx, xlsx, etc. or dynamic validation)
+    return True
+
+
+def check_svg_safety(content: bytes) -> bool:
+    """
+    Scans SVG content for potential XSS payloads like script tags or onload attributes.
+    """
+    try:
+        text = content.decode("utf-8", errors="ignore").lower()
+        dangerous_patterns = [
+            "<script", "javascript:", "onload=", "onerror=", 
+            "onclick=", "onmouseover=", "onfocus=", "onblur="
+        ]
+        for pattern in dangerous_patterns:
+            if pattern in text:
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def sanitize_image_metadata(file_content: bytes) -> tuple[bytes, int, int]:
+    """
+    Loads image with Pillow, strips EXIF metadata, and returns clean bytes, width, and height.
+    Runs inside a threadpool.
+    """
+    img = Image.open(io.BytesIO(file_content))
+    
+    # Auto rotate based on EXIF orientation if available
+    try:
+        from PIL import ImageOps
+        img = ImageOps.exif_transpose(img)
+    except Exception:
+        pass
+
+    width, height = img.width, img.height
+    
+    # Re-save to strip metadata (EXIF is not passed)
+    out_io = io.BytesIO()
+    img_format = img.format or "PNG"
+    img.save(out_io, format=img_format)
+    return out_io.getvalue(), width, height
+
+
 class MediaService:
     """
     Independent Media Management Service.
@@ -125,18 +193,48 @@ class MediaService:
         if parent_id:
             await self._verify_parent_exists_and_is_folder(db, parent_id)
 
-        # 1. Compute checksum and file details
+        # 0. Security Validations
+        # Validate Magic Bytes (File Signatures)
+        if not validate_magic_bytes(file_content, content_type):
+            raise BadRequestException(
+                message="Nội dung tập tin không khớp với định dạng được khai báo.",
+                error_code="INVALID_FILE_SIGNATURE",
+            )
+
+        # SVG Protection against script/XSS injection
+        if content_type == "image/svg+xml" or content_type.endswith("svg+xml"):
+            if not check_svg_safety(file_content):
+                raise BadRequestException(
+                    message="Tập tin SVG không an toàn, chứa mã độc hại.",
+                    error_code="UNSAFE_SVG_FILE",
+                )
+
+        # 1. Image Sanitization (Strip EXIF & Re-encode)
+        width, height = None, None
+        thumbnail_key = None
+
+        if content_type.startswith("image/") and not content_type.endswith("svg+xml"):
+            try:
+                # Sanitize original image (Remove EXIF)
+                file_content, width, height = await run_sync(
+                    sanitize_image_metadata, file_content
+                )
+            except Exception as e:
+                logger.error(f"Lỗi khi xóa siêu dữ liệu ảnh: {e}")
+                raise BadRequestException(
+                    message="Tập tin hình ảnh không hợp lệ hoặc bị lỗi.",
+                    error_code="INVALID_IMAGE_FILE",
+                )
+
+        # Compute checksum and file details after sanitization
         size = len(file_content)
         checksum = hashlib.md5(file_content).hexdigest()
 
-        # 2. Extract image dimensions if it's an image
-        width, height = None, None
-        thumbnail_key = None
-        
+        # 2. Extract image thumbnail
         if content_type.startswith("image/") and not content_type.endswith("svg+xml"):
             try:
                 # Run Image parsing on thread pool to keep event loop responsive
-                width, height, thumbnail_bytes = await run_sync(
+                _, _, thumbnail_bytes = await run_sync(
                     self._process_image_and_thumbnail, file_content
                 )
                 
@@ -153,7 +251,7 @@ class MediaService:
                     )
                     thumbnail_key = thumb_key
             except Exception as e:
-                logger.warning(f"Không thể xử lý ảnh hoặc tạo thumbnail cho '{filename}': {e}")
+                logger.warning(f"Không thể tạo thumbnail cho '{filename}': {e}")
 
         # 3. Upload original file to MinIO S3
         object_key = f"files/{uuid.uuid4().hex}"

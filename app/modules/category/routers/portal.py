@@ -55,6 +55,7 @@ async def list_category_articles_portal(
     category_slug: str,
     page: int = Query(default=1, ge=1, description="Chỉ số trang (bắt đầu từ 1)"),
     page_size: int = Query(default=10, ge=1, le=100, alias="page_size", description="Số lượng bài viết trên mỗi trang"),
+    lang: str = Query(default="vi", description="Ngôn ngữ bản dịch"),
     db: AsyncSession = Depends(get_db),
 ) -> PortalArticlePaginationResponse:
     """
@@ -64,7 +65,8 @@ async def list_category_articles_portal(
         db,
         category_slug=category_slug,
         page=page,
-        page_size=page_size
+        page_size=page_size,
+        lang=lang
     )
 
     total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
@@ -73,7 +75,7 @@ async def list_category_articles_portal(
 
     return PortalArticlePaginationResponse(
         items=[PortalArticleResponse.model_validate(item) for item in items],
-        total=total,
+        total_items=total,
         page=page,
         page_size=page_size,
         total_pages=total_pages,

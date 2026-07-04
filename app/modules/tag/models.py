@@ -58,7 +58,7 @@ class TagTranslation(BaseModel):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     tag: Mapped["Tag"] = relationship("Tag", back_populates="translations")
-    language: Mapped["Language"] = relationship("Language")
+    language: Mapped["Language"] = relationship("Language", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("tag_id", "language_id", name="uq_tag_language_unique"),

@@ -1,4 +1,4 @@
-from app.modules.tag.schemas.common import TagStatusUpdate
+from app.modules.tag.schemas.common import TagStatusUpdate, TagSlugCheckResponse
 from app.modules.tag.schemas.admin import (
     TagCreate,
     TagUpdate,

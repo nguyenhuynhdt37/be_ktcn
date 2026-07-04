@@ -29,7 +29,6 @@ SORT_COLUMNS = {
     "published_at": Article.published_at,
     "view_count": Article.view_count,
     "sort_order": Article.sort_order,
-    "is_featured": Article.is_featured,
     "is_pinned": Article.is_pinned
 }
 
@@ -41,13 +40,14 @@ class ArticleFilterParams:
     def __init__(
         self,
         category_slug: Optional[str] = None,
+        category_slugs: Optional[List[str]] = None,
+        exclude_category_slugs: Optional[List[str]] = None,
         tag_slug: Optional[str] = None,
         author_username: Optional[str] = None,
         category_id: Optional[uuid.UUID] = None,
         tag_id: Optional[uuid.UUID] = None,
         tag_ids: Optional[List[uuid.UUID]] = None,
         author_id: Optional[uuid.UUID] = None,
-        is_featured: Optional[bool] = None,
         is_pinned: Optional[bool] = None,
         published_from: Optional[datetime] = None,
         published_to: Optional[datetime] = None,
@@ -56,13 +56,14 @@ class ArticleFilterParams:
         deleted: bool = False
     ):
         self.category_slug = category_slug
+        self.category_slugs = category_slugs
+        self.exclude_category_slugs = exclude_category_slugs
         self.tag_slug = tag_slug
         self.author_username = author_username
         self.category_id = category_id
         self.tag_id = tag_id
         self.tag_ids = tag_ids
         self.author_id = author_id
-        self.is_featured = is_featured
         self.is_pinned = is_pinned
         self.published_from = published_from
         self.published_to = published_to
@@ -167,20 +168,53 @@ class ArticleQueryBuilder:
             return self
 
         # --- Slug Filters (Dành riêng cho Portal Client) ---
+        from app.modules.category.models import CategoryTranslation
+        
+        # Gộp category_slug và category_slugs để lọc chọn
+        slugs_to_filter = []
         if params.category_slug:
-            self._safe_join(Article.category, Category)
-            from app.modules.category.models import CategoryTranslation
+            slugs_to_filter.append(params.category_slug)
+        if params.category_slugs:
+            slugs_to_filter.extend(params.category_slugs)
+
+        if slugs_to_filter:
             if self.resolved_lang_id:
-                self.query = self.query.join(
-                    CategoryTranslation,
-                    (CategoryTranslation.category_id == Category.id) &
-                    (CategoryTranslation.language_id == self.resolved_lang_id)
+                self.query = self.query.where(
+                    Article.category.has(
+                        Category.translations.any(
+                            (CategoryTranslation.slug.in_(slugs_to_filter)) &
+                            (CategoryTranslation.language_id == self.resolved_lang_id)
+                        )
+                    )
                 )
             else:
-                from app.modules.language.models import Language
-                self.query = self.query.join(CategoryTranslation).join(Language)
-                self.query = self.query.where(Language.code == "vi")
-            self.query = self.query.where(CategoryTranslation.slug == params.category_slug)
+                self.query = self.query.where(
+                    Article.category.has(
+                        Category.translations.any(
+                            CategoryTranslation.slug.in_(slugs_to_filter)
+                        )
+                    )
+                )
+
+        # Lọc loại trừ danh mục (exclude_category_slugs)
+        if params.exclude_category_slugs:
+            if self.resolved_lang_id:
+                self.query = self.query.where(
+                    ~Article.category.has(
+                        Category.translations.any(
+                            (CategoryTranslation.slug.in_(params.exclude_category_slugs)) &
+                            (CategoryTranslation.language_id == self.resolved_lang_id)
+                        )
+                    )
+                )
+            else:
+                self.query = self.query.where(
+                    ~Article.category.has(
+                        Category.translations.any(
+                            CategoryTranslation.slug.in_(params.exclude_category_slugs)
+                        )
+                    )
+                )
 
         if params.tag_slug:
             from app.modules.tag.models import TagTranslation
@@ -223,9 +257,6 @@ class ArticleQueryBuilder:
             self.query = self.query.where(Article.author_id == params.author_id)
 
         # --- Common Flags & Dates ---
-        if params.is_featured is not None:
-            self.query = self.query.where(Article.is_featured == params.is_featured)
-
         if params.is_pinned is not None:
             self.query = self.query.where(Article.is_pinned == params.is_pinned)
 
@@ -258,9 +289,9 @@ class ArticleQueryBuilder:
         elif strategy == SortStrategy.HOME:
             self.query = self.query.order_by(Article.is_pinned.desc(), direction(sort_column))
         elif strategy == SortStrategy.CATEGORY:
-            self.query = self.query.order_by(Article.is_pinned.desc(), Article.is_featured.desc(), direction(sort_column))
+            self.query = self.query.order_by(Article.is_pinned.desc(), direction(sort_column))
         elif strategy == SortStrategy.SEARCH:
-            self.query = self.query.order_by(Article.is_featured.desc(), direction(sort_column))
+            self.query = self.query.order_by(direction(sort_column))
 
         return self
 

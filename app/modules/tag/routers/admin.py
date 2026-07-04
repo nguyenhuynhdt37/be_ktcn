@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.modules.audit.service import log_action
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import UserResponse
-from app.modules.tag.schemas import TagCreate, AdminTagResponse, TagStatusUpdate, TagUpdate
+from app.modules.tag.schemas import TagCreate, AdminTagResponse, TagStatusUpdate, TagUpdate, TagSlugCheckResponse
 from app.modules.tag.service import tag_service
 from app.shared.pagination import PaginatedResponse, PaginationParams
 
@@ -28,6 +28,20 @@ async def list_tags(
     )
     response_items = [AdminTagResponse.model_validate(tag) for tag in tags]
     return PaginatedResponse.create(items=response_items, total=total, params=params)
+
+
+@router.get("/check-slug", response_model=TagSlugCheckResponse)
+async def check_tag_slug(
+    slug: str = Query(..., min_length=1),
+    exclude_id: Optional[uuid.UUID] = None,
+    lang: str = "vi",
+    db: AsyncSession = Depends(get_db),
+) -> TagSlugCheckResponse:
+    """
+    [CMS Admin] Kiểm tra xem slug của Tag có trùng lặp không trong cùng một ngôn ngữ.
+    """
+    result = await tag_service.check_slug_uniqueness(db, slug, lang, exclude_id)
+    return TagSlugCheckResponse(**result)
 
 
 @router.get("/{tag_id}", response_model=AdminTagResponse)

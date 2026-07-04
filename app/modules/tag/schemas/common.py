@@ -85,3 +85,10 @@ def build_tag_resolved_before_validation(data: Any) -> Any:
 
 class TagStatusUpdate(BaseModel):
     is_active: bool = Field(..., description="Trạng thái hoạt động (True = Bật, False = Tắt)")
+
+
+class TagSlugCheckResponse(BaseModel):
+    """Phản hồi kiểm tra trùng lặp slug của Tag."""
+    exists: bool = Field(..., description="Slug có trùng lặp trong hệ thống hay không")
+    suggested_slug: str = Field(..., description="Gợi ý slug mới không bị trùng")
+

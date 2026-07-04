@@ -19,11 +19,11 @@ from app.modules.media.schemas import (
 )
 from app.modules.media.service import MediaService
 
-media_router = APIRouter()
+admin_router = APIRouter()
 media_service = MediaService()
 
 
-@media_router.post("/folders", response_model=MediaItemResponse)
+@admin_router.post("/folders", response_model=MediaItemResponse)
 async def create_folder(
     request: Request,
     payload: FolderCreate,
@@ -46,20 +46,7 @@ async def create_folder(
     return result
 
 
-@media_router.get("", response_model=List[MediaItemResponse])
-async def list_directory(
-    parent_id: Optional[uuid.UUID] = None,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> List[MediaItemResponse]:
-    """
-    Liệt kê nội dung bên trong một thư mục cha (mặc định là thư mục gốc).
-    Quyền yêu cầu: media.view
-    """
-    return await media_service.list_directory(db, parent_id=parent_id)
-
-
-@media_router.post("/upload", response_model=MediaItemResponse)
+@admin_router.post("/upload", response_model=MediaItemResponse)
 async def upload_file(
     request: Request,
     file: UploadFile = File(...),
@@ -91,7 +78,20 @@ async def upload_file(
     return result
 
 
-@media_router.get("/{media_id}/download")
+@admin_router.get("", response_model=List[MediaItemResponse])
+async def list_directory(
+    parent_id: Optional[uuid.UUID] = None,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> List[MediaItemResponse]:
+    """
+    Liệt kê nội dung bên trong một thư mục cha (mặc định là thư mục gốc).
+    Quyền yêu cầu: media.view
+    """
+    return await media_service.list_directory(db, parent_id=parent_id)
+
+
+@admin_router.get("/{media_id}/download")
 async def download_file(
     media_id: uuid.UUID,
     current_user: UserResponse = Depends(get_current_user),
@@ -109,7 +109,7 @@ async def download_file(
     )
 
 
-@media_router.get("/{media_id}/url")
+@admin_router.get("/{media_id}/url")
 async def get_url(
     media_id: uuid.UUID,
     current_user: UserResponse = Depends(get_current_user),
@@ -123,7 +123,7 @@ async def get_url(
     return {"url": url}
 
 
-@media_router.post("/{media_id}/rename", response_model=MediaItemResponse)
+@admin_router.post("/{media_id}/rename", response_model=MediaItemResponse)
 async def rename_item(
     request: Request,
     media_id: uuid.UUID,
@@ -144,7 +144,7 @@ async def rename_item(
     return result
 
 
-@media_router.post("/{media_id}/move", response_model=MediaItemResponse)
+@admin_router.post("/{media_id}/move", response_model=MediaItemResponse)
 async def move_item(
     request: Request,
     media_id: uuid.UUID,
@@ -165,7 +165,7 @@ async def move_item(
     return result
 
 
-@media_router.post("/{media_id}/copy", response_model=MediaItemResponse)
+@admin_router.post("/{media_id}/copy", response_model=MediaItemResponse)
 async def copy_file(
     request: Request,
     media_id: uuid.UUID,
@@ -186,7 +186,7 @@ async def copy_file(
     return result
 
 
-@media_router.delete("/{media_id}")
+@admin_router.delete("/{media_id}")
 async def delete_item(
     request: Request,
     media_id: uuid.UUID,
@@ -203,7 +203,7 @@ async def delete_item(
     return {"success": True}
 
 
-@media_router.post("/presigned-upload", response_model=PresignedUrlResponse)
+@admin_router.post("/presigned-upload", response_model=PresignedUrlResponse)
 async def generate_presigned_upload(
     filename: str,
     content_type: str,
@@ -220,7 +220,7 @@ async def generate_presigned_upload(
     return PresignedUrlResponse(**data)
 
 
-@media_router.get("/{media_id}/presigned-download")
+@admin_router.get("/{media_id}/presigned-download")
 async def generate_presigned_download(
     media_id: uuid.UUID,
     expires_in: int = 3600,

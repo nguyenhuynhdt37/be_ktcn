@@ -73,7 +73,6 @@ class Article(BaseModel):
     is_draft: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
 
     # Hiển thị
-    is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
@@ -112,8 +111,8 @@ class Article(BaseModel):
         Index("idx_articles_list_query", "status", "publish_at"),
         # Phục vụ hiển thị danh sách tin tức theo danh mục
         Index("idx_articles_category_query", "category_id", "status", "publish_at"),
-        # Phục vụ hiển thị tin tức nổi bật và ghim đầu trang
-        Index("idx_articles_featured_pinned", "status", "is_pinned", "is_featured", "publish_at"),
+        # Phục vụ hiển thị tin tức ghim đầu trang
+        Index("idx_articles_pinned_status", "status", "is_pinned", "publish_at"),
     )
 
 
@@ -149,7 +148,7 @@ class ArticleTranslation(BaseModel):
 
     # Relationships
     article: Mapped["Article"] = relationship("Article", back_populates="translations")
-    language: Mapped["Language"] = relationship("Language")
+    language: Mapped["Language"] = relationship("Language", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("article_id", "language_id", name="uq_article_language_unique"),

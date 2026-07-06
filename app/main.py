@@ -54,6 +54,7 @@ from app.modules.banner.models import Banner
 from app.modules.language.models import Language
 from app.modules.ai_hub.models import AIRequestLog
 from app.modules.statistics.models import SystemStatistics
+from app.modules.consultation.models import Consultation
 
 
 # Initialize global logging configuration

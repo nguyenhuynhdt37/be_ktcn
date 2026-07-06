@@ -98,3 +98,7 @@ class ConsultationUpdate(BaseModel):
     @classmethod
     def trim_note(cls, value: object) -> object:
         return value.strip() if isinstance(value, str) else value
+
+
+# Alias to resolve import references in routers and tests
+ConsultationResponse = ConsultationAdminResponse

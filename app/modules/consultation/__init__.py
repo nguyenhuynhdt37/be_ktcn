@@ -1,1 +1,1 @@
-# Module Consultation
+"""Admissions consultation module."""

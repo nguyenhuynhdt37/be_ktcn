@@ -36,6 +36,7 @@ from app.modules.auth.routers.profile import router as profile_router
 from app.modules.search.router import router as search_router
 from app.modules.statistics.router import router as statistics_portal_router
 from app.modules.consultation.routers import admin_router as consultation_admin_router, portal_router as consultation_portal_router
+from app.modules.notification.routers import router as notification_admin_router
 
 from app.shared.redis import close_redis, init_redis
 
@@ -55,7 +56,8 @@ from app.modules.banner.models import Banner
 from app.modules.language.models import Language
 from app.modules.ai_hub.models import AIRequestLog
 from app.modules.statistics.models import SystemStatistics
-from app.modules.consultation.models import Consultation
+from app.modules.consultation.models import ConsultationLead
+from app.modules.notification.models import Notification
 
 
 # Initialize global logging configuration
@@ -164,7 +166,21 @@ app.include_router(translation_router, prefix=f"{settings.API_V1_STR}/translatio
 app.include_router(ai_hub_router, prefix=f"{settings.API_V1_STR}/ai-hub", tags=["ai-hub"])
 app.include_router(search_router, prefix=f"{settings.API_V1_STR}/admin/search", tags=["admin-search"])
 app.include_router(statistics_portal_router, prefix=settings.API_V1_STR)
+app.include_router(
+    consultation_portal_router,
+    prefix=f"{settings.API_V1_STR}/portal/consultations",
+    tags=["portal-consultations"],
+)
+app.include_router(
+    consultation_admin_router,
+    prefix=f"{settings.API_V1_STR}/admin/consultations",
+    tags=["admin-consultations"],
+)
+app.include_router(
+    notification_admin_router,
+    prefix=f"{settings.API_V1_STR}/admin/notifications",
+    tags=["admin-notifications"],
+)
 
-app.include_router(consultation_admin_router, prefix=f"{settings.API_V1_STR}/admin/consultations", tags=["admin-consultations"])
-app.include_router(consultation_portal_router, prefix=f"{settings.API_V1_STR}/portal/consultations", tags=["portal-consultations"])
+
 

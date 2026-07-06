@@ -68,7 +68,7 @@ async def admin_credentials() -> tuple[str, str]:
 
 @pytest.fixture(scope="function")
 async def client() -> AsyncGenerator[httpx.AsyncClient, None]:
-    async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
+    async with httpx.AsyncClient(app=app, base_url="http://localhost") as ac:
         yield ac
 
 

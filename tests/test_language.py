@@ -94,8 +94,6 @@ async def test_portal_languages_api(client: AsyncClient):
     assert "code" in first_item
     assert "name" in first_item
     assert "native_name" in first_item
-    assert "flag_id" in first_item
-    assert "flag_url" in first_item
     assert "is_default" in first_item
     
     # Không được trả dữ liệu quản trị

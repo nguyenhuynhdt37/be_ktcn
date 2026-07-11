@@ -15,6 +15,9 @@ from app.modules.article.schemas.common import (
 class PortalArticleListResponse(BaseModel):
     id: uuid.UUID
     category_id: Optional[uuid.UUID] = None
+    department_id: Optional[uuid.UUID] = None
+    program_id: Optional[uuid.UUID] = None
+    article_type: str = "news"
     author_id: Optional[uuid.UUID] = None
     status: ArticleStatus
     is_pinned: bool
@@ -43,6 +46,9 @@ class PortalArticleListResponse(BaseModel):
 class PortalArticleResponse(BaseModel):
     id: uuid.UUID
     category_id: Optional[uuid.UUID] = None
+    department_id: Optional[uuid.UUID] = None
+    program_id: Optional[uuid.UUID] = None
+    article_type: str = "news"
     author_id: Optional[uuid.UUID] = None
     status: ArticleStatus
     is_pinned: bool

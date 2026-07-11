@@ -1,4 +1,5 @@
 import re
+import unicodedata
 import uuid
 from datetime import UTC, datetime
 from typing import Optional, Tuple
@@ -16,6 +17,12 @@ from app.modules.degree.models import Degree
 
 
 class StaffService:
+    def normalize_full_name(self, text: str) -> str:
+        normalized = unicodedata.normalize("NFD", text.strip().lower())
+        ascii_name = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+        ascii_name = ascii_name.replace("đ", "d")
+        return " ".join(ascii_name.split())
+
     def slugify(self, text: str) -> str:
         unicode_map = {
             'a': 'áàảãạăắằẳẵặâấầẩẫậ',
@@ -139,6 +146,8 @@ class StaffService:
         academic_title_id: Optional[uuid.UUID] = None,
         degree_id: Optional[uuid.UUID] = None,
         is_active: Optional[bool] = None,
+        profile_status: Optional[str] = None,
+        is_visible: Optional[bool] = None,
         sort_by: str = "sort_order",
         order: str = "asc",
         page: int = 1,
@@ -158,6 +167,10 @@ class StaffService:
 
         if is_active is not None:
             stmt = stmt.where(Staff.is_active == is_active)
+        if profile_status is not None:
+            stmt = stmt.where(Staff.profile_status == profile_status)
+        if is_visible is not None:
+            stmt = stmt.where(Staff.is_visible == is_visible)
         if department_id is not None:
             stmt = stmt.where(Staff.department_id == department_id)
         if position_id is not None:
@@ -266,6 +279,19 @@ class StaffService:
             if not deg or deg.deleted_at is not None:
                 raise BadRequestException("Học vị được chọn không hợp lệ")
 
+        normalized_full_name = self.normalize_full_name(data.full_name)
+        if data.date_of_birth:
+            duplicate = await db.execute(
+                select(Staff).where(
+                    Staff.normalized_full_name == normalized_full_name,
+                    Staff.date_of_birth == data.date_of_birth,
+                    Staff.department_id == data.department_id,
+                    Staff.deleted_at.is_(None),
+                )
+            )
+            if duplicate.scalar_one_or_none():
+                raise BadRequestException("Hồ sơ nhân sự này đã tồn tại trong đơn vị")
+
         # Sinh unique slug cho Staff từ full_name
         base_slug = self.slugify(data.full_name)
         slug = base_slug
@@ -293,7 +319,10 @@ class StaffService:
             academic_title_id=data.academic_title_id,
             degree_id=data.degree_id,
             full_name=data.full_name,
+            normalized_full_name=normalized_full_name,
             english_name=data.english_name,
+            date_of_birth=data.date_of_birth,
+            gender=data.gender,
             slug=slug,
             avatar_object_key=data.avatar_object_key,
             email=data.email,
@@ -302,6 +331,12 @@ class StaffService:
             office=data.office,
             sort_order=data.sort_order,
             is_active=data.is_active,
+            profile_status=data.profile_status,
+            is_visible=data.is_visible,
+            note=data.note,
+            source_type=data.source_type,
+            source_note=data.source_note,
+            source_file_id=data.source_file_id,
         )
         db.add(staff)
         await db.flush()
@@ -357,6 +392,7 @@ class StaffService:
 
         if data.full_name is not None:
             staff.full_name = data.full_name
+            staff.normalized_full_name = self.normalize_full_name(data.full_name)
             # Cập nhật slug mới
             base_slug = self.slugify(data.full_name)
             slug = base_slug
@@ -373,6 +409,10 @@ class StaffService:
 
         if data.english_name is not None:
             staff.english_name = data.english_name
+        if data.date_of_birth is not None:
+            staff.date_of_birth = data.date_of_birth
+        if data.gender is not None:
+            staff.gender = data.gender
         if data.avatar_object_key is not None:
             staff.avatar_object_key = data.avatar_object_key
         if data.email is not None:
@@ -443,6 +483,18 @@ class StaffService:
 
         if data.is_active is not None:
             staff.is_active = data.is_active
+        if data.profile_status is not None:
+            staff.profile_status = data.profile_status
+        if data.is_visible is not None:
+            staff.is_visible = data.is_visible
+        if data.note is not None:
+            staff.note = data.note
+        if data.source_type is not None:
+            staff.source_type = data.source_type
+        if data.source_note is not None:
+            staff.source_note = data.source_note
+        if data.source_file_id is not None:
+            staff.source_file_id = data.source_file_id
 
         if data.translations is not None:
             for code, trans_data in data.translations.items():

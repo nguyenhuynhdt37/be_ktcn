@@ -43,6 +43,7 @@ async def list_staffs_portal(
         department_id=department_id,
         position_id=position_id,
         is_active=True,
+        is_visible=True,
         sort_by="sort_order",
         order="asc",
         page=1,
@@ -71,7 +72,7 @@ async def get_staff_by_slug_portal(
             selected_lang = primary
 
     staff = await staff_service.get_staff_by_slug(db, slug, lang=selected_lang)
-    if not staff.is_active:
+    if not staff.is_active or not staff.is_visible:
         from app.core.exceptions import NotFoundException
         raise NotFoundException("Không tìm thấy giảng viên")
     return PortalStaffResponse.model_validate(staff)

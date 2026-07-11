@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -32,7 +32,10 @@ class Staff(BaseModel):
         ForeignKey("degrees.id", ondelete="SET NULL"), nullable=True
     )
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalized_full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     english_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    date_of_birth: Mapped[Optional[date]] = mapped_column(nullable=True)
+    gender: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_object_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -41,6 +44,12 @@ class Staff(BaseModel):
     office: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    profile_status: Mapped[str] = mapped_column(String(30), default="imported", nullable=False)
+    is_visible: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    source_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_file_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
     
     # Soft Delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(

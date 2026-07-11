@@ -63,13 +63,14 @@ class DepartmentService:
 
         department.name = matched.name if matched else ""
         department.description = matched.description if matched else None
-        department.slug = matched.slug if matched else ""
+        department.short_description = matched.short_description if matched else None
         department.mission = matched.mission if matched else None
         department.vision = matched.vision if matched else None
         department.history = matched.history if matched else None
         department.research_overview = matched.research_overview if matched else None
         department.seo_title = matched.seo_title if matched else None
         department.seo_description = matched.seo_description if matched else None
+        department.slug = matched.slug if matched else ""
         return department
 
     async def _validate_head_staff(self, db: AsyncSession, head_staff_id: uuid.UUID) -> None:
@@ -170,8 +171,10 @@ class DepartmentService:
         stmt = (
             select(Department)
             .join(DepartmentTranslation)
+            .join(Language, DepartmentTranslation.language_id == Language.id)
             .where(
                 DepartmentTranslation.slug == slug,
+                Language.code == lang,
                 Department.deleted_at.is_(None)
             )
         )
@@ -218,6 +221,9 @@ class DepartmentService:
         )
 
         dept = Department(
+            code=data.code,
+            unit_type=data.unit_type,
+            parent_id=data.parent_id,
             thumbnail_object_key=data.thumbnail_object_key,
             logo_object_key=data.logo_object_key,
             banner_object_key=data.banner_object_key,
@@ -228,6 +234,7 @@ class DepartmentService:
             sort_order=data.sort_order,
             display_order=data.display_order,
             is_active=data.is_active,
+            content_status=data.content_status,
             head_staff_id=data.head_staff_id,
         )
         db.add(dept)
@@ -253,13 +260,14 @@ class DepartmentService:
                 language_id=lang_map[code],
                 name=trans_data.name,
                 description=trans_data.description,
-                slug=slug,
+                short_description=trans_data.short_description,
                 mission=trans_data.mission,
                 vision=trans_data.vision,
                 history=trans_data.history,
                 research_overview=trans_data.research_overview,
                 seo_title=trans_data.seo_title,
                 seo_description=trans_data.seo_description,
+                slug=slug,
             )
             db.add(trans)
 
@@ -276,6 +284,14 @@ class DepartmentService:
         lang_map = await self.get_language_map(db)
 
         # Update fields trực tiếp
+        if data.code is not None:
+            dept.code = data.code
+        if data.unit_type is not None:
+            dept.unit_type = data.unit_type
+        if data.parent_id is not None:
+            if data.parent_id == dept.id:
+                raise BadRequestException("Đơn vị không thể là cấp trên của chính nó")
+            dept.parent_id = data.parent_id
         if data.thumbnail_object_key is not None:
             dept.thumbnail_object_key = data.thumbnail_object_key
         if data.logo_object_key is not None:
@@ -316,6 +332,8 @@ class DepartmentService:
                 d.sort_order = index
         if data.is_active is not None:
             dept.is_active = data.is_active
+        if data.content_status is not None:
+            dept.content_status = data.content_status
 
         # Update translations
         if data.translations is not None:
@@ -334,6 +352,7 @@ class DepartmentService:
                     if trans_data.name:
                         matched.name = trans_data.name
                         matched.description = trans_data.description
+                        matched.short_description = trans_data.short_description
                         matched.mission = trans_data.mission
                         matched.vision = trans_data.vision
                         matched.history = trans_data.history
@@ -349,30 +368,30 @@ class DepartmentService:
                                         DepartmentTranslation.id != matched.id
                                     )
                                 )
-                                if slug_exists.scalar_one_or_none():
+                                if slug_exists.scalars().first():
                                     raise BadRequestException(f"Slug '{trans_data.slug}' đã tồn tại")
                                 matched.slug = trans_data.slug
                             else:
                                 matched.slug = trans_data.slug
                         else:
-                            new_slug = self.slugify(trans_data.name)
-                            if matched.slug != new_slug:
-                                slug_exists = await db.execute(
-                                    select(DepartmentTranslation).where(
-                                        DepartmentTranslation.slug == new_slug,
-                                        DepartmentTranslation.id != matched.id
-                                    )
-                                )
-                                if slug_exists.scalar_one_or_none():
-                                    new_slug = f"{new_slug}-{uuid.uuid4().hex[:4]}"
-                                matched.slug = new_slug
+                             new_slug = self.slugify(trans_data.name)
+                             if matched.slug != new_slug:
+                                 slug_exists = await db.execute(
+                                     select(DepartmentTranslation).where(
+                                         DepartmentTranslation.slug == new_slug,
+                                         DepartmentTranslation.id != matched.id
+                                     )
+                                 )
+                                 if slug_exists.scalars().first():
+                                     new_slug = f"{new_slug}-{uuid.uuid4().hex[:4]}"
+                                 matched.slug = new_slug
                 else:
                     if trans_data.name:
                         slug = trans_data.slug or self.slugify(trans_data.name)
                         slug_exists = await db.execute(
                             select(DepartmentTranslation).where(DepartmentTranslation.slug == slug)
                         )
-                        if slug_exists.scalar_one_or_none():
+                        if slug_exists.scalars().first():
                             slug = f"{slug}-{uuid.uuid4().hex[:4]}"
 
                         new_trans = DepartmentTranslation(
@@ -380,13 +399,14 @@ class DepartmentService:
                             language_id=lang_map[code],
                             name=trans_data.name,
                             description=trans_data.description,
-                            slug=slug,
+                            short_description=trans_data.short_description,
                             mission=trans_data.mission,
                             vision=trans_data.vision,
                             history=trans_data.history,
                             research_overview=trans_data.research_overview,
                             seo_title=trans_data.seo_title,
                             seo_description=trans_data.seo_description,
+                            slug=slug,
                         )
                         db.add(new_trans)
 

@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, Any
+from typing import Literal, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -49,16 +49,16 @@ def build_department_resolved(data: Any) -> dict:
 
     translations_dict = {
         "vi": {
-            "name": "", "description": "", "slug": "",
+            "name": "", "description": "", "short_description": "",
             "mission": None, "vision": None, "history": None,
             "research_overview": None, "seo_title": None, "seo_description": None,
-            "is_translated": False,
+            "slug": "", "is_translated": False,
         },
         "en": {
-            "name": "", "description": "", "slug": "",
+            "name": "", "description": "", "short_description": "",
             "mission": None, "vision": None, "history": None,
             "research_overview": None, "seo_title": None, "seo_description": None,
-            "is_translated": False,
+            "slug": "", "is_translated": False,
         }
     }
     is_translated = {
@@ -76,19 +76,23 @@ def build_department_resolved(data: Any) -> dict:
                 translations_dict[lang_code] = {
                     "name": trans.name,
                     "description": trans.description,
-                    "slug": trans.slug,
+                    "short_description": getattr(trans, "short_description", None),
                     "mission": getattr(trans, "mission", None),
                     "vision": getattr(trans, "vision", None),
                     "history": getattr(trans, "history", None),
                     "research_overview": getattr(trans, "research_overview", None),
                     "seo_title": getattr(trans, "seo_title", None),
                     "seo_description": getattr(trans, "seo_description", None),
+                    "slug": trans.slug,
                     "is_translated": True
                 }
                 is_translated[lang_code] = True
 
     db_dict = {
         "id": safe_getattr(data, "id", None),
+        "code": safe_getattr(data, "code", None),
+        "unit_type": safe_getattr(data, "unit_type", "department"),
+        "parent_id": safe_getattr(data, "parent_id", None),
         "thumbnail_object_key": transform_url(safe_getattr(data, "thumbnail_object_key", None)),
         "logo_object_key": transform_url(safe_getattr(data, "logo_object_key", None)),
         "banner_object_key": transform_url(safe_getattr(data, "banner_object_key", None)),
@@ -99,18 +103,20 @@ def build_department_resolved(data: Any) -> dict:
         "sort_order": safe_getattr(data, "sort_order", 0),
         "display_order": safe_getattr(data, "display_order", None),
         "is_active": safe_getattr(data, "is_active", True),
+        "content_status": safe_getattr(data, "content_status", "draft"),
         "head_staff_id": safe_getattr(data, "head_staff_id", None),
         "is_translated": is_translated,
         "translations": translations_dict,
         "name": safe_getattr(data, "name", ""),
         "description": safe_getattr(data, "description", None),
-        "slug": safe_getattr(data, "slug", ""),
+        "short_description": safe_getattr(data, "short_description", None),
         "mission": safe_getattr(data, "mission", None),
         "vision": safe_getattr(data, "vision", None),
         "history": safe_getattr(data, "history", None),
         "research_overview": safe_getattr(data, "research_overview", None),
         "seo_title": safe_getattr(data, "seo_title", None),
         "seo_description": safe_getattr(data, "seo_description", None),
+        "slug": safe_getattr(data, "slug", ""),
         "staff_count": safe_getattr(data, "staff_count", 0),
         "created_at": safe_getattr(data, "created_at", None),
         "updated_at": safe_getattr(data, "updated_at", None)
@@ -122,19 +128,23 @@ class TranslationItemResponse(BaseModel):
     """Schema cho từng bản dịch của Department."""
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
-    slug: Optional[str] = None
+    short_description: Optional[str] = None
     mission: Optional[str] = None
     vision: Optional[str] = None
     history: Optional[str] = None
     research_overview: Optional[str] = None
-    seo_title: Optional[str] = None
+    seo_title: Optional[str] = Field(None, max_length=255)
     seo_description: Optional[str] = None
+    slug: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class DepartmentCreate(BaseModel):
     """Payload tạo mới bộ môn."""
+    code: Optional[str] = Field(None, max_length=50)
+    unit_type: Literal["school", "faculty", "department", "office", "center", "lab"] = "department"
+    parent_id: Optional[uuid.UUID] = None
     thumbnail_object_key: Optional[str] = None
     logo_object_key: Optional[str] = None
     banner_object_key: Optional[str] = None
@@ -145,6 +155,7 @@ class DepartmentCreate(BaseModel):
     sort_order: int = 0
     display_order: Optional[int] = None
     is_active: bool = True
+    content_status: Literal["draft", "review", "published"] = "draft"
     head_staff_id: Optional[uuid.UUID] = None
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch bộ môn")
 
@@ -158,6 +169,9 @@ class DepartmentCreate(BaseModel):
 
 class DepartmentUpdate(BaseModel):
     """Payload cập nhật bộ môn."""
+    code: Optional[str] = Field(None, max_length=50)
+    unit_type: Optional[Literal["school", "faculty", "department", "office", "center", "lab"]] = None
+    parent_id: Optional[uuid.UUID] = None
     thumbnail_object_key: Optional[str] = None
     logo_object_key: Optional[str] = None
     banner_object_key: Optional[str] = None
@@ -168,6 +182,7 @@ class DepartmentUpdate(BaseModel):
     sort_order: Optional[int] = None
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
+    content_status: Optional[Literal["draft", "review", "published"]] = None
     head_staff_id: Optional[uuid.UUID] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 

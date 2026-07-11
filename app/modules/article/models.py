@@ -58,6 +58,13 @@ class Article(BaseModel):
     author_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    program_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("programs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    article_type: Mapped[str] = mapped_column(String(30), default="news", nullable=False, index=True)
 
     # Hình ảnh (Chỉ lưu Object Key của MinIO)
     thumbnail_object_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
@@ -93,6 +100,8 @@ class Article(BaseModel):
     # Relationships
     category: Mapped[Optional["Category"]] = relationship("Category")
     author: Mapped[Optional["User"]] = relationship("User")
+    department: Mapped[Optional["Department"]] = relationship("Department", back_populates="articles")
+    program: Mapped[Optional["Program"]] = relationship("Program", back_populates="articles")
     tags: Mapped[list["Tag"]] = relationship(
         "Tag",
         secondary="article_tags",

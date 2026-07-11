@@ -8,6 +8,9 @@ from app.modules.department.schemas.common import build_department_resolved
 class AdminDepartmentResponse(BaseModel):
     """Response thông tin Bộ môn phục vụ quản trị."""
     id: uuid.UUID
+    code: Optional[str] = None
+    unit_type: str
+    parent_id: Optional[uuid.UUID] = None
     thumbnail_object_key: Optional[str] = None
     logo_object_key: Optional[str] = None
     banner_object_key: Optional[str] = None
@@ -18,11 +21,19 @@ class AdminDepartmentResponse(BaseModel):
     sort_order: int
     display_order: Optional[int] = None
     is_active: bool
+    content_status: str
     head_staff_id: Optional[uuid.UUID] = None
     is_translated: dict[str, bool] = {}
     translations: dict[str, Any] = {}
     name: str = ""
     description: Optional[str] = None
+    short_description: Optional[str] = None
+    mission: Optional[str] = None
+    vision: Optional[str] = None
+    history: Optional[str] = None
+    research_overview: Optional[str] = None
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
     slug: str = ""
     staff_count: int = 0
     created_at: Optional[datetime] = None

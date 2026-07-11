@@ -30,6 +30,9 @@ class TranslationItemResponse(BaseModel):
 
 class ArticleCreateRequest(BaseModel):
     category_id: Optional[uuid.UUID] = Field(default=None)
+    department_id: Optional[uuid.UUID] = Field(default=None)
+    program_id: Optional[uuid.UUID] = Field(default=None)
+    article_type: str = Field(default="news", max_length=30)
     tag_ids: list[uuid.UUID] = Field(default=[])
     status: ArticleStatus = Field(default=ArticleStatus.DRAFT)
     publish_at: Optional[datetime] = Field(default=None)
@@ -74,6 +77,9 @@ class ArticleCreateRequest(BaseModel):
 
 class ArticleUpdateRequest(BaseModel):
     category_id: Optional[uuid.UUID] = None
+    department_id: Optional[uuid.UUID] = None
+    program_id: Optional[uuid.UUID] = None
+    article_type: Optional[str] = Field(default=None, max_length=30)
     tag_ids: Optional[list[uuid.UUID]] = None
     status: Optional[ArticleStatus] = None
     publish_at: Optional[datetime] = None
@@ -119,6 +125,9 @@ class ArticleUpdateRequest(BaseModel):
 class AdminArticleResponse(BaseModel):
     id: uuid.UUID
     category_id: Optional[uuid.UUID] = None
+    department_id: Optional[uuid.UUID] = None
+    program_id: Optional[uuid.UUID] = None
+    article_type: str = "news"
     author_id: Optional[uuid.UUID] = None
     status: ArticleStatus
     is_draft: bool

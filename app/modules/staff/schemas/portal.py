@@ -22,6 +22,7 @@ class PortalStaffResponse(BaseModel):
     website: Optional[str] = None
     office: Optional[str] = None
     sort_order: int
+    profile_status: str
     academic_title: Optional[str] = None
     degree: Optional[str] = None
     biography: Optional[str] = None

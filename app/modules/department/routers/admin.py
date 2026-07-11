@@ -13,7 +13,9 @@ from app.modules.department.schemas import (
     DepartmentUpdate,
     DepartmentPaginationResponse,
     DepartmentStatsResponse,
+    DepartmentSEOAnalyzeRequest,
 )
+from app.modules.article.schemas.admin import ArticleSEOAnalyzeResponse
 from app.modules.department.service import department_service
 
 admin_router = APIRouter()
@@ -188,3 +190,24 @@ async def delete_department_admin(
         {"name": dept.name}, request
     )
     await db.commit()
+
+
+@admin_router.post("/{department_id}/seo/analyze", response_model=ArticleSEOAnalyzeResponse)
+async def analyze_department_seo(
+    department_id: uuid.UUID,
+    payload: DepartmentSEOAnalyzeRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> ArticleSEOAnalyzeResponse:
+    """
+    [CMS Admin] Thực hiện phân tích SEO cho Khoa/Bộ môn (Rule Engine & AI suggestions).
+    Hỗ trợ truyền dữ liệu thay đổi trên form chưa lưu trong payload.
+    """
+    from app.modules.department.seo_service import seo_service
+    return await seo_service.analyze_department_seo(
+        db=db,
+        department_id=department_id,
+        payload=payload,
+        current_user=current_user
+    )
+

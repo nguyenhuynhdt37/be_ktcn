@@ -86,6 +86,26 @@ CONTEXT_PROMPTS = {
         "BẮT BUỘC bảo toàn 100% cấu trúc HTML: không thay đổi các thẻ (tag) và thuộc tính của chúng "
         "(bao gồm class, id, style, href, src, data-*). Chỉ dịch phần nội dung văn bản hiển thị (text node). "
         "Sử dụng văn phong báo chí đại học trang trọng."
+    ),
+    TranslationContext.DEPARTMENT_MISSION: (
+        "Đây là phần mô tả sứ mệnh của một khoa/bộ môn đại học. "
+        "Hãy dịch trang trọng, tràn đầy cảm hứng, truyền đạt đúng tinh thần giáo dục và học thuật, "
+        "và bảo toàn cấu trúc HTML nếu có."
+    ),
+    TranslationContext.DEPARTMENT_VISION: (
+        "Đây là phần mô tả tầm nhìn chiến lược của một khoa/bộ môn đại học. "
+        "Hãy dịch trang trọng, hướng tới tương lai, sử dụng thuật ngữ phát triển giáo dục chuẩn, "
+        "và bảo toàn cấu trúc HTML nếu có."
+    ),
+    TranslationContext.DEPARTMENT_HISTORY: (
+        "Đây là lịch sử hình thành và phát triển của một khoa/bộ môn đại học. "
+        "Hãy dịch rõ ràng, chính xác theo dòng thời gian lịch sử, văn phong trang trọng, "
+        "và bảo toàn cấu trúc HTML nếu có."
+    ),
+    TranslationContext.DEPARTMENT_RESEARCH_OVERVIEW: (
+        "Đây là tổng quan định hướng và kết quả nghiên cứu khoa học của khoa/bộ môn. "
+        "Hãy dịch chính xác các thuật ngữ học thuật chuyên sâu, công nghệ, hướng nghiên cứu, "
+        "và bảo toàn cấu trúc HTML nếu có."
     )
 }
 

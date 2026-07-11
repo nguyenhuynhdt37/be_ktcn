@@ -14,6 +14,10 @@ class TranslationContext(str, Enum):
     RESEARCH_DIRECTION = "research_direction"
     ARTICLE_TITLE = "article_title"
     ARTICLE_SUMMARY = "article_summary"
+    DEPARTMENT_MISSION = "department_mission"
+    DEPARTMENT_VISION = "department_vision"
+    DEPARTMENT_HISTORY = "department_history"
+    DEPARTMENT_RESEARCH_OVERVIEW = "department_research_overview"
     SCIENTIFIC_PROFILE = "scientific_profile"
     ARTICLE_CONTENT = "article_content"
 

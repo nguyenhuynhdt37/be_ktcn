@@ -16,13 +16,21 @@ class Department(BaseModel):
     __tablename__ = "departments"
 
     thumbnail_object_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    logo_object_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    banner_object_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     office: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    display_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    
+
+    # Trưởng Khoa / Head of Department
+    head_staff_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("staffs.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Soft Delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), default=None, nullable=True, index=True
@@ -40,7 +48,14 @@ class Department(BaseModel):
         "Staff",
         back_populates="department",
         cascade="all, delete-orphan",
-        passive_deletes=True
+        passive_deletes=True,
+        foreign_keys="[Staff.department_id]"
+    )
+
+    head_staff: Mapped[Optional["Staff"]] = relationship(
+        "Staff",
+        foreign_keys=[head_staff_id],
+        lazy="selectin"
     )
 
 
@@ -59,6 +74,16 @@ class DepartmentTranslation(BaseModel):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Rich-text content fields
+    mission: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vision: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    history: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    research_overview: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # SEO fields
+    seo_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    seo_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Relationships
     department: Mapped["Department"] = relationship("Department", back_populates="translations")

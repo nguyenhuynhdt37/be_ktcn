@@ -41,14 +41,25 @@ def build_department_resolved(data: Any) -> dict:
         data["translations"] = translations
         data["is_translated"] = is_translated
         
-        # Transform thumbnail URL
-        if "thumbnail_object_key" in data:
-            data["thumbnail_object_key"] = transform_url(data["thumbnail_object_key"])
+        # Transform media URLs
+        for key in ("thumbnail_object_key", "logo_object_key", "banner_object_key"):
+            if key in data:
+                data[key] = transform_url(data[key])
         return data
 
     translations_dict = {
-        "vi": {"name": "", "description": "", "slug": "", "is_translated": False},
-        "en": {"name": "", "description": "", "slug": "", "is_translated": False}
+        "vi": {
+            "name": "", "description": "", "slug": "",
+            "mission": None, "vision": None, "history": None,
+            "research_overview": None, "seo_title": None, "seo_description": None,
+            "is_translated": False,
+        },
+        "en": {
+            "name": "", "description": "", "slug": "",
+            "mission": None, "vision": None, "history": None,
+            "research_overview": None, "seo_title": None, "seo_description": None,
+            "is_translated": False,
+        }
     }
     is_translated = {
         "vi": False,
@@ -66,6 +77,12 @@ def build_department_resolved(data: Any) -> dict:
                     "name": trans.name,
                     "description": trans.description,
                     "slug": trans.slug,
+                    "mission": getattr(trans, "mission", None),
+                    "vision": getattr(trans, "vision", None),
+                    "history": getattr(trans, "history", None),
+                    "research_overview": getattr(trans, "research_overview", None),
+                    "seo_title": getattr(trans, "seo_title", None),
+                    "seo_description": getattr(trans, "seo_description", None),
                     "is_translated": True
                 }
                 is_translated[lang_code] = True
@@ -73,17 +90,27 @@ def build_department_resolved(data: Any) -> dict:
     db_dict = {
         "id": safe_getattr(data, "id", None),
         "thumbnail_object_key": transform_url(safe_getattr(data, "thumbnail_object_key", None)),
+        "logo_object_key": transform_url(safe_getattr(data, "logo_object_key", None)),
+        "banner_object_key": transform_url(safe_getattr(data, "banner_object_key", None)),
         "phone": safe_getattr(data, "phone", None),
         "email": safe_getattr(data, "email", None),
         "website": safe_getattr(data, "website", None),
         "office": safe_getattr(data, "office", None),
         "sort_order": safe_getattr(data, "sort_order", 0),
+        "display_order": safe_getattr(data, "display_order", None),
         "is_active": safe_getattr(data, "is_active", True),
+        "head_staff_id": safe_getattr(data, "head_staff_id", None),
         "is_translated": is_translated,
         "translations": translations_dict,
         "name": safe_getattr(data, "name", ""),
         "description": safe_getattr(data, "description", None),
         "slug": safe_getattr(data, "slug", ""),
+        "mission": safe_getattr(data, "mission", None),
+        "vision": safe_getattr(data, "vision", None),
+        "history": safe_getattr(data, "history", None),
+        "research_overview": safe_getattr(data, "research_overview", None),
+        "seo_title": safe_getattr(data, "seo_title", None),
+        "seo_description": safe_getattr(data, "seo_description", None),
         "staff_count": safe_getattr(data, "staff_count", 0),
         "created_at": safe_getattr(data, "created_at", None),
         "updated_at": safe_getattr(data, "updated_at", None)
@@ -96,6 +123,12 @@ class TranslationItemResponse(BaseModel):
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
     slug: Optional[str] = None
+    mission: Optional[str] = None
+    vision: Optional[str] = None
+    history: Optional[str] = None
+    research_overview: Optional[str] = None
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -103,12 +136,16 @@ class TranslationItemResponse(BaseModel):
 class DepartmentCreate(BaseModel):
     """Payload tạo mới bộ môn."""
     thumbnail_object_key: Optional[str] = None
+    logo_object_key: Optional[str] = None
+    banner_object_key: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     website: Optional[str] = None
     office: Optional[str] = None
     sort_order: int = 0
+    display_order: Optional[int] = None
     is_active: bool = True
+    head_staff_id: Optional[uuid.UUID] = None
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch bộ môn")
 
     @field_validator("phone", "email", "website", "office", mode="before")
@@ -122,12 +159,16 @@ class DepartmentCreate(BaseModel):
 class DepartmentUpdate(BaseModel):
     """Payload cập nhật bộ môn."""
     thumbnail_object_key: Optional[str] = None
+    logo_object_key: Optional[str] = None
+    banner_object_key: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     website: Optional[str] = None
     office: Optional[str] = None
     sort_order: Optional[int] = None
+    display_order: Optional[int] = None
     is_active: Optional[bool] = None
+    head_staff_id: Optional[uuid.UUID] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 
     @field_validator("phone", "email", "website", "office", mode="before")

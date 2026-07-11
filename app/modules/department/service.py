@@ -43,7 +43,7 @@ class DepartmentService:
         return {lang.code: lang.id for lang in result.scalars().all()}
 
     def _apply_translation(self, department: Department, lang: str = "vi") -> Department:
-        """Gán các thuộc tính động (name, description, slug) dựa trên ngôn ngữ yêu cầu."""
+        """Gán các thuộc tính động (name, description, slug, ...) dựa trên ngôn ngữ yêu cầu."""
         matched = None
         for t in department.translations:
             if t.language.code == lang:
@@ -64,7 +64,21 @@ class DepartmentService:
         department.name = matched.name if matched else ""
         department.description = matched.description if matched else None
         department.slug = matched.slug if matched else ""
+        department.mission = matched.mission if matched else None
+        department.vision = matched.vision if matched else None
+        department.history = matched.history if matched else None
+        department.research_overview = matched.research_overview if matched else None
+        department.seo_title = matched.seo_title if matched else None
+        department.seo_description = matched.seo_description if matched else None
         return department
+
+    async def _validate_head_staff(self, db: AsyncSession, head_staff_id: uuid.UUID) -> None:
+        """Kiểm tra head_staff_id tồn tại trong bảng staffs."""
+        from app.modules.staff.models import Staff
+        stmt = select(Staff.id).where(Staff.id == head_staff_id, Staff.deleted_at.is_(None))
+        result = await db.execute(stmt)
+        if not result.scalar_one_or_none():
+            raise BadRequestException(f"Không tìm thấy giảng viên với ID: {head_staff_id}")
 
     async def list_departments(
         self,
@@ -191,7 +205,11 @@ class DepartmentService:
         if "en" not in data.translations or not data.translations["en"].name.strip():
             raise BadRequestException("Bản dịch tiếng Anh (en) là bắt buộc và không được để trống tên")
 
-        # 2. Tự động đẩy các department có sort_order >= data.sort_order
+        # 2. Validate head_staff_id nếu có
+        if data.head_staff_id:
+            await self._validate_head_staff(db, data.head_staff_id)
+
+        # 3. Tự động đẩy các department có sort_order >= data.sort_order
         from sqlalchemy import update
         await db.execute(
             update(Department)
@@ -201,17 +219,21 @@ class DepartmentService:
 
         dept = Department(
             thumbnail_object_key=data.thumbnail_object_key,
+            logo_object_key=data.logo_object_key,
+            banner_object_key=data.banner_object_key,
             phone=data.phone,
             email=data.email,
             website=data.website,
             office=data.office,
             sort_order=data.sort_order,
+            display_order=data.display_order,
             is_active=data.is_active,
+            head_staff_id=data.head_staff_id,
         )
         db.add(dept)
         await db.flush()
 
-        # 3. Tạo các translations
+        # 4. Tạo các translations
         for code, trans_data in data.translations.items():
             if code not in lang_map:
                 continue
@@ -232,6 +254,12 @@ class DepartmentService:
                 name=trans_data.name,
                 description=trans_data.description,
                 slug=slug,
+                mission=trans_data.mission,
+                vision=trans_data.vision,
+                history=trans_data.history,
+                research_overview=trans_data.research_overview,
+                seo_title=trans_data.seo_title,
+                seo_description=trans_data.seo_description,
             )
             db.add(trans)
 
@@ -250,6 +278,10 @@ class DepartmentService:
         # Update fields trực tiếp
         if data.thumbnail_object_key is not None:
             dept.thumbnail_object_key = data.thumbnail_object_key
+        if data.logo_object_key is not None:
+            dept.logo_object_key = data.logo_object_key
+        if data.banner_object_key is not None:
+            dept.banner_object_key = data.banner_object_key
         if data.phone is not None:
             dept.phone = data.phone
         if data.email is not None:
@@ -258,6 +290,11 @@ class DepartmentService:
             dept.website = data.website
         if data.office is not None:
             dept.office = data.office
+        if data.display_order is not None:
+            dept.display_order = data.display_order
+        if data.head_staff_id is not None:
+            await self._validate_head_staff(db, data.head_staff_id)
+            dept.head_staff_id = data.head_staff_id
         if data.sort_order is not None and data.sort_order != dept.sort_order:
             # 1. Lấy tất cả bộ môn khác sắp xếp theo sort_order tăng dần
             stmt_other = (
@@ -297,6 +334,12 @@ class DepartmentService:
                     if trans_data.name:
                         matched.name = trans_data.name
                         matched.description = trans_data.description
+                        matched.mission = trans_data.mission
+                        matched.vision = trans_data.vision
+                        matched.history = trans_data.history
+                        matched.research_overview = trans_data.research_overview
+                        matched.seo_title = trans_data.seo_title
+                        matched.seo_description = trans_data.seo_description
                         if trans_data.slug:
                             # Validate slug mới nếu đổi
                             if matched.slug != trans_data.slug:
@@ -338,6 +381,12 @@ class DepartmentService:
                             name=trans_data.name,
                             description=trans_data.description,
                             slug=slug,
+                            mission=trans_data.mission,
+                            vision=trans_data.vision,
+                            history=trans_data.history,
+                            research_overview=trans_data.research_overview,
+                            seo_title=trans_data.seo_title,
+                            seo_description=trans_data.seo_description,
                         )
                         db.add(new_trans)
 

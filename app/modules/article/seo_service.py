@@ -619,6 +619,8 @@ class ArticleSEOService:
                 clean_response = clean_response.strip()
                 
             ai_response_json = json.loads(clean_response)
+            if not isinstance(ai_response_json, dict):
+                raise ValueError("AI response is not a JSON object")
             logger.info("Successfully parsed SEO Assistant response from AI Hub.")
         except Exception as e:
             logger.error(f"Failed to fetch or parse SEO suggestions from AI Hub: {e}. Falling back to Rule Engine suggestions.")

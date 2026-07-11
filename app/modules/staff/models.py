@@ -48,7 +48,7 @@ class Staff(BaseModel):
     )
 
     # Relationships
-    department: Mapped["Department"] = relationship("Department", back_populates="staffs")
+    department: Mapped["Department"] = relationship("Department", back_populates="staffs", foreign_keys=[department_id])
     position: Mapped["Position"] = relationship("Position", back_populates="staffs")
     academic_title: Mapped[Optional["AcademicTitle"]] = relationship("AcademicTitle", back_populates="staffs")
     degree: Mapped[Optional["Degree"]] = relationship("Degree", back_populates="staffs")

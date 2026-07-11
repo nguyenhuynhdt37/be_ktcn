@@ -75,6 +75,11 @@ def build_menu_item_resolved(data: Any) -> Any:
         "depth": safe_getattr(data, "depth", 1),
         "sort_order": safe_getattr(data, "sort_order", 0),
         "is_visible": safe_getattr(data, "is_visible", True),
+        "has_link": safe_getattr(
+            data,
+            "has_link",
+            bool(safe_getattr(data, "target_type", None) or safe_getattr(data, "external_url", None)),
+        ),
         "is_translated": is_translated,
         "translations": translations_dict,
         "title": safe_getattr(data, "title", ""),

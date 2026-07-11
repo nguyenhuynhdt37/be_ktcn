@@ -37,6 +37,8 @@ from app.modules.search.router import router as search_router
 from app.modules.statistics.router import router as statistics_portal_router
 from app.modules.consultation.routers import admin_router as consultation_admin_router, portal_router as consultation_portal_router
 from app.modules.notification.routers import router as notification_admin_router
+from app.modules.program import admin_router as program_admin_router, portal_router as program_portal_router
+from app.modules.gallery import admin_router as gallery_admin_router, portal_router as gallery_portal_router
 
 from app.shared.redis import close_redis, init_redis
 
@@ -58,6 +60,8 @@ from app.modules.ai_hub.models import AIRequestLog
 from app.modules.statistics.models import SystemStatistics
 from app.modules.consultation.models import ConsultationLead
 from app.modules.notification.models import Notification
+from app.modules.program.models import Program, ProgramTranslation
+from app.modules.gallery.models import DepartmentGallery, DepartmentGalleryTranslation, DepartmentGalleryItem
 
 
 # Initialize global logging configuration
@@ -150,6 +154,10 @@ app.include_router(tag_admin_router, prefix=f"{settings.API_V1_STR}/admin/tags",
 app.include_router(tag_portal_router, prefix=f"{settings.API_V1_STR}/portal/tags", tags=["portal-tags"])
 app.include_router(department_admin_router, prefix=f"{settings.API_V1_STR}/admin/departments", tags=["admin-departments"])
 app.include_router(department_portal_router, prefix=f"{settings.API_V1_STR}/portal/departments", tags=["portal-departments"])
+app.include_router(program_admin_router, prefix=f"{settings.API_V1_STR}/admin/programs", tags=["admin-programs"])
+app.include_router(program_portal_router, prefix=f"{settings.API_V1_STR}/portal/programs", tags=["portal-programs"])
+app.include_router(gallery_admin_router, prefix=f"{settings.API_V1_STR}/admin/galleries", tags=["admin-galleries"])
+app.include_router(gallery_portal_router, prefix=f"{settings.API_V1_STR}/portal/galleries", tags=["portal-galleries"])
 app.include_router(position_admin_router, prefix=f"{settings.API_V1_STR}/admin/positions", tags=["admin-positions"])
 app.include_router(position_portal_router, prefix=f"{settings.API_V1_STR}/portal/positions", tags=["portal-positions"])
 app.include_router(staff_admin_router, prefix=f"{settings.API_V1_STR}/admin/staffs", tags=["admin-staffs"])

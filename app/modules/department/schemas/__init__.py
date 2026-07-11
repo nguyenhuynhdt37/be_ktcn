@@ -10,4 +10,5 @@ from app.modules.department.schemas.admin import (
 )
 from app.modules.department.schemas.portal import (
     PortalDepartmentResponse,
+    PortalDepartmentOverviewResponse,
 )

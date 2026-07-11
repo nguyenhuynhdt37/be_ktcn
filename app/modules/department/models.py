@@ -15,13 +15,20 @@ class Department(BaseModel):
     """
     __tablename__ = "departments"
 
+    code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    unit_type: Mapped[str] = mapped_column(String(30), default="department", nullable=False)
+    parent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("departments.id", ondelete="SET NULL"), nullable=True
+    )
     thumbnail_object_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    banner_object_key: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     office: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    content_status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False)
     
     # Soft Delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
@@ -43,6 +50,20 @@ class Department(BaseModel):
         passive_deletes=True
     )
 
+    parent: Mapped[Optional["Department"]] = relationship(
+        "Department", remote_side="Department.id", back_populates="children"
+    )
+    children: Mapped[List["Department"]] = relationship(
+        "Department", back_populates="parent"
+    )
+    programs: Mapped[List["Program"]] = relationship(
+        "Program", back_populates="department", cascade="all, delete-orphan"
+    )
+    galleries: Mapped[List["DepartmentGallery"]] = relationship(
+        "DepartmentGallery", back_populates="department", cascade="all, delete-orphan"
+    )
+    articles: Mapped[List["Article"]] = relationship("Article", back_populates="department")
+
 
 class DepartmentTranslation(BaseModel):
     """
@@ -58,6 +79,11 @@ class DepartmentTranslation(BaseModel):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    short_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mission: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vision: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    seo_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    seo_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Relationships

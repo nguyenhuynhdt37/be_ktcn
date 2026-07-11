@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, Any
+from typing import Literal, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -44,11 +44,13 @@ def build_department_resolved(data: Any) -> dict:
         # Transform thumbnail URL
         if "thumbnail_object_key" in data:
             data["thumbnail_object_key"] = transform_url(data["thumbnail_object_key"])
+        if "banner_object_key" in data:
+            data["banner_object_key"] = transform_url(data["banner_object_key"])
         return data
 
     translations_dict = {
-        "vi": {"name": "", "description": "", "slug": "", "is_translated": False},
-        "en": {"name": "", "description": "", "slug": "", "is_translated": False}
+        "vi": {"name": "", "description": "", "short_description": "", "mission": "", "vision": "", "seo_title": "", "seo_description": "", "slug": "", "is_translated": False},
+        "en": {"name": "", "description": "", "short_description": "", "mission": "", "vision": "", "seo_title": "", "seo_description": "", "slug": "", "is_translated": False}
     }
     is_translated = {
         "vi": False,
@@ -65,6 +67,11 @@ def build_department_resolved(data: Any) -> dict:
                 translations_dict[lang_code] = {
                     "name": trans.name,
                     "description": trans.description,
+                    "short_description": trans.short_description,
+                    "mission": trans.mission,
+                    "vision": trans.vision,
+                    "seo_title": trans.seo_title,
+                    "seo_description": trans.seo_description,
                     "slug": trans.slug,
                     "is_translated": True
                 }
@@ -72,17 +79,27 @@ def build_department_resolved(data: Any) -> dict:
 
     db_dict = {
         "id": safe_getattr(data, "id", None),
+        "code": safe_getattr(data, "code", None),
+        "unit_type": safe_getattr(data, "unit_type", "department"),
+        "parent_id": safe_getattr(data, "parent_id", None),
         "thumbnail_object_key": transform_url(safe_getattr(data, "thumbnail_object_key", None)),
+        "banner_object_key": transform_url(safe_getattr(data, "banner_object_key", None)),
         "phone": safe_getattr(data, "phone", None),
         "email": safe_getattr(data, "email", None),
         "website": safe_getattr(data, "website", None),
         "office": safe_getattr(data, "office", None),
         "sort_order": safe_getattr(data, "sort_order", 0),
         "is_active": safe_getattr(data, "is_active", True),
+        "content_status": safe_getattr(data, "content_status", "draft"),
         "is_translated": is_translated,
         "translations": translations_dict,
         "name": safe_getattr(data, "name", ""),
         "description": safe_getattr(data, "description", None),
+        "short_description": safe_getattr(data, "short_description", None),
+        "mission": safe_getattr(data, "mission", None),
+        "vision": safe_getattr(data, "vision", None),
+        "seo_title": safe_getattr(data, "seo_title", None),
+        "seo_description": safe_getattr(data, "seo_description", None),
         "slug": safe_getattr(data, "slug", ""),
         "staff_count": safe_getattr(data, "staff_count", 0),
         "created_at": safe_getattr(data, "created_at", None),
@@ -95,6 +112,11 @@ class TranslationItemResponse(BaseModel):
     """Schema cho từng bản dịch của Department."""
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
+    short_description: Optional[str] = None
+    mission: Optional[str] = None
+    vision: Optional[str] = None
+    seo_title: Optional[str] = Field(None, max_length=255)
+    seo_description: Optional[str] = None
     slug: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -102,13 +124,18 @@ class TranslationItemResponse(BaseModel):
 
 class DepartmentCreate(BaseModel):
     """Payload tạo mới bộ môn."""
+    code: Optional[str] = Field(None, max_length=50)
+    unit_type: Literal["school", "faculty", "department", "office", "center", "lab"] = "department"
+    parent_id: Optional[uuid.UUID] = None
     thumbnail_object_key: Optional[str] = None
+    banner_object_key: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     website: Optional[str] = None
     office: Optional[str] = None
     sort_order: int = 0
     is_active: bool = True
+    content_status: Literal["draft", "review", "published"] = "draft"
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch bộ môn")
 
     @field_validator("phone", "email", "website", "office", mode="before")
@@ -121,13 +148,18 @@ class DepartmentCreate(BaseModel):
 
 class DepartmentUpdate(BaseModel):
     """Payload cập nhật bộ môn."""
+    code: Optional[str] = Field(None, max_length=50)
+    unit_type: Optional[Literal["school", "faculty", "department", "office", "center", "lab"]] = None
+    parent_id: Optional[uuid.UUID] = None
     thumbnail_object_key: Optional[str] = None
+    banner_object_key: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     website: Optional[str] = None
     office: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
+    content_status: Optional[Literal["draft", "review", "published"]] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 
     @field_validator("phone", "email", "website", "office", mode="before")

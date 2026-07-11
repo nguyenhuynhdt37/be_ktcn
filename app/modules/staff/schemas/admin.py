@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, model_validator
 from app.modules.staff.schemas.common import build_staff_resolved
@@ -15,7 +15,10 @@ class AdminStaffResponse(BaseModel):
     academic_title_id: Optional[uuid.UUID] = None
     degree_id: Optional[uuid.UUID] = None
     full_name: str
+    normalized_full_name: Optional[str] = None
     english_name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
     slug: str
     avatar_object_key: Optional[str] = None
     email: Optional[str] = None
@@ -24,6 +27,12 @@ class AdminStaffResponse(BaseModel):
     office: Optional[str] = None
     sort_order: int
     is_active: bool
+    profile_status: str
+    is_visible: bool
+    note: Optional[str] = None
+    source_type: Optional[str] = None
+    source_note: Optional[str] = None
+    source_file_id: Optional[uuid.UUID] = None
     is_translated: dict[str, bool] = {}
     translations: dict[str, Any] = {}
     academic_title: Optional[str] = None

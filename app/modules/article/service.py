@@ -631,6 +631,18 @@ class ArticleService:
             if not category:
                 raise BadRequestException(message="Danh mục không tồn tại hoặc đã bị xóa.")
 
+        if payload.department_id:
+            from app.modules.department.models import Department
+            if not (await db.execute(select(Department.id).where(Department.id == payload.department_id, Department.deleted_at.is_(None)))).scalar():
+                raise BadRequestException(message="Đơn vị liên quan không tồn tại hoặc đã bị xóa.")
+        if payload.program_id:
+            from app.modules.program.models import Program
+            program = (await db.execute(select(Program).where(Program.id == payload.program_id, Program.deleted_at.is_(None)))).scalar_one_or_none()
+            if not program:
+                raise BadRequestException(message="Chương trình đào tạo không tồn tại hoặc đã bị xóa.")
+            if payload.department_id and program.department_id != payload.department_id:
+                raise BadRequestException(message="Chương trình đào tạo không thuộc đơn vị đã chọn.")
+
         # 2. Kiểm tra Tags nếu có truyền
         tags_list = []
         if tag_ids:
@@ -670,6 +682,9 @@ class ArticleService:
 
         article = Article(
             category_id=category_id,
+            department_id=payload.department_id,
+            program_id=payload.program_id,
+            article_type=payload.article_type,
             author_id=current_user.id,
             thumbnail_object_key=payload.thumbnail_object_key,
             cover_object_key=payload.cover_object_key,
@@ -1061,6 +1076,12 @@ class ArticleService:
             article.thumbnail_object_key = payload.thumbnail_object_key
         if payload.cover_object_key is not None:
             article.cover_object_key = payload.cover_object_key
+        if "department_id" in payload.model_fields_set:
+            article.department_id = payload.department_id
+        if "program_id" in payload.model_fields_set:
+            article.program_id = payload.program_id
+        if payload.article_type is not None:
+            article.article_type = payload.article_type
         
         # publish_at & published_at
         published_at = article.published_at
@@ -1387,6 +1408,9 @@ class ArticleService:
         page_size: int = 10,
         search: Optional[str] = None,
         category_slug: Optional[str] = None,
+        department_id: Optional[uuid.UUID] = None,
+        program_id: Optional[uuid.UUID] = None,
+        article_type: Optional[str] = None,
         category_slugs: Optional[list[str]] = None,
         exclude_category_slugs: Optional[list[str]] = None,
         tag_slug: Optional[str] = None,
@@ -1433,6 +1457,12 @@ class ArticleService:
             published_to=published_to
         )
         builder.filter(filter_params)
+        if department_id:
+            builder.query = builder.query.where(Article.department_id == department_id)
+        if program_id:
+            builder.query = builder.query.where(Article.program_id == program_id)
+        if article_type:
+            builder.query = builder.query.where(Article.article_type == article_type)
         
         # Tìm kiếm Generic
         if search:

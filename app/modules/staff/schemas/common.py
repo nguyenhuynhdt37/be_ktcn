@@ -1,4 +1,6 @@
 import uuid
+from datetime import date
+from typing import Literal
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -75,7 +77,10 @@ def build_staff_resolved(data: Any) -> dict:
         "academic_title_id": safe_getattr(data, "academic_title_id", None),
         "degree_id": safe_getattr(data, "degree_id", None),
         "full_name": safe_getattr(data, "full_name", ""),
+        "normalized_full_name": safe_getattr(data, "normalized_full_name", None),
         "english_name": safe_getattr(data, "english_name", None),
+        "date_of_birth": safe_getattr(data, "date_of_birth", None),
+        "gender": safe_getattr(data, "gender", None),
         "slug": safe_getattr(data, "slug", ""),
         "avatar_object_key": transform_url(safe_getattr(data, "avatar_object_key", None)),
         "email": safe_getattr(data, "email", None),
@@ -84,6 +89,12 @@ def build_staff_resolved(data: Any) -> dict:
         "office": safe_getattr(data, "office", None),
         "sort_order": safe_getattr(data, "sort_order", 0),
         "is_active": safe_getattr(data, "is_active", True),
+        "profile_status": safe_getattr(data, "profile_status", "imported"),
+        "is_visible": safe_getattr(data, "is_visible", False),
+        "note": safe_getattr(data, "note", None),
+        "source_type": safe_getattr(data, "source_type", None),
+        "source_note": safe_getattr(data, "source_note", None),
+        "source_file_id": safe_getattr(data, "source_file_id", None),
         "is_translated": is_translated,
         "translations": translations_dict,
         "academic_title": safe_getattr(data, "academic_title_resolved", None),
@@ -114,6 +125,8 @@ class StaffCreate(BaseModel):
     degree_id: Optional[uuid.UUID] = None
     full_name: str = Field(..., max_length=255)
     english_name: Optional[str] = Field(None, max_length=255)
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = Field(None, max_length=20)
     avatar_object_key: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -121,9 +134,15 @@ class StaffCreate(BaseModel):
     office: Optional[str] = None
     sort_order: int = 0
     is_active: bool = True
+    profile_status: Literal["imported", "pending_review", "completed", "published"] = "pending_review"
+    is_visible: bool = True
+    note: Optional[str] = None
+    source_type: Optional[str] = Field(None, max_length=50)
+    source_note: Optional[str] = None
+    source_file_id: Optional[uuid.UUID] = None
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch thông tin giảng viên")
 
-    @field_validator("english_name", "email", "phone", "website", "office", mode="before")
+    @field_validator("english_name", "gender", "email", "phone", "website", "office", mode="before")
     @classmethod
     def empty_str_to_none(cls, v: Any) -> Any:
         if v == "":
@@ -139,6 +158,8 @@ class StaffUpdate(BaseModel):
     degree_id: Optional[uuid.UUID] = None
     full_name: Optional[str] = None
     english_name: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
     avatar_object_key: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -146,9 +167,15 @@ class StaffUpdate(BaseModel):
     office: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
+    profile_status: Optional[Literal["imported", "pending_review", "completed", "published"]] = None
+    is_visible: Optional[bool] = None
+    note: Optional[str] = None
+    source_type: Optional[str] = None
+    source_note: Optional[str] = None
+    source_file_id: Optional[uuid.UUID] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 
-    @field_validator("english_name", "email", "phone", "website", "office", mode="before")
+    @field_validator("english_name", "gender", "email", "phone", "website", "office", mode="before")
     @classmethod
     def empty_str_to_none(cls, v: Any) -> Any:
         if v == "":

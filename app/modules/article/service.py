@@ -127,6 +127,19 @@ class ArticleService:
             
         return slug_candidate
 
+    async def _trigger_article_publish_notification(
+        self,
+        db: AsyncSession,
+        article: Article
+    ) -> None:
+        try:
+            from app.modules.notification.service import notification_service
+            recipient_ids = await notification_service.create_article_notifications(db, article)
+            await db.commit()
+            await notification_service.publish_article_event(recipient_ids, article)
+        except Exception as e:
+            logger.warning("Failed to trigger article publish notification: {}", e)
+
     async def list_articles(
         self,
         db: AsyncSession,
@@ -365,6 +378,7 @@ class ArticleService:
         )
 
         await db.commit()
+        await self._trigger_article_publish_notification(db, article)
         return article
 
     async def bulk_update_status(
@@ -782,7 +796,10 @@ class ArticleService:
             )
         )
         result = await db.execute(stmt)
-        return result.scalars().first()
+        article_reloaded = result.scalars().first()
+        if article_reloaded and article_reloaded.status == ArticleStatus.PUBLISHED and not article_reloaded.is_draft:
+            await self._trigger_article_publish_notification(db, article_reloaded)
+        return article_reloaded
 
     async def check_slug_availability(
         self,
@@ -987,6 +1004,8 @@ class ArticleService:
 
         if not article:
             raise NotFoundException(message="Không tìm thấy bài viết hoặc bài viết đã bị xóa.")
+
+        was_published = (article.status == ArticleStatus.PUBLISHED and not article.is_draft)
 
         # 2. Phân quyền chỉnh sửa (Edit Security)
         if article.author_id != current_user.id:
@@ -1218,6 +1237,10 @@ class ArticleService:
             article_reloaded.id,
             {"title": log_title, "status": article_reloaded.status.value, "is_draft": article_reloaded.is_draft}
         )
+
+        will_be_published = (article_reloaded.status == ArticleStatus.PUBLISHED and not article_reloaded.is_draft)
+        if will_be_published and not was_published:
+            await self._trigger_article_publish_notification(db, article_reloaded)
 
         return article_reloaded
 

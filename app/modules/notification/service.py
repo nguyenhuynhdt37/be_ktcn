@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 import redis.asyncio as aioredis
 from loguru import logger
@@ -51,6 +52,35 @@ class NotificationService:
                         "message": lead.message,
                         "status": lead.status.value if lead.status else None,
                         "created_at": lead.created_at.isoformat() if lead.created_at else None,
+                    }
+            elif entity_type == "article":
+                from app.modules.article.models import Article, ArticleTranslation
+                from sqlalchemy.orm import selectinload
+                stmt = select(Article).where(Article.id == entity_id).options(
+                    selectinload(Article.translations).selectinload(ArticleTranslation.language)
+                )
+                res = await db.execute(stmt)
+                art = res.scalar_one_or_none()
+                if art:
+                    title_vi = ""
+                    title_en = ""
+                    slug_vi = ""
+                    slug_en = ""
+                    for t in art.translations:
+                        if t.language.code == "vi":
+                            title_vi = t.title
+                            slug_vi = t.slug
+                        elif t.language.code == "en":
+                            title_en = t.title
+                            slug_en = t.slug
+                    return {
+                        "id": str(art.id),
+                        "status": art.status.value if art.status else None,
+                        "title_vi": title_vi,
+                        "title_en": title_en,
+                        "slug_vi": slug_vi,
+                        "slug_en": slug_en,
+                        "created_at": art.created_at.isoformat() if art.created_at else None,
                     }
         except Exception as e:
             logger.warning("Error resolving notification entity details: {}", e)
@@ -120,6 +150,108 @@ class NotificationService:
                 "type": NotificationType.CONSULTATION_CREATED.value,
                 "title": title_dict,
                 "related_url": f"/consultations?lead={lead.id}",
+            },
+            ensure_ascii=False
+        )
+        try:
+            for recipient_id in recipient_ids:
+                await client.publish(f"admin-notifications:{recipient_id}", payload)
+        except Exception as exc:
+            logger.warning("Could not publish realtime notification: {}", exc)
+        finally:
+            await client.close()
+
+    async def create_article_notifications(
+        self,
+        db: AsyncSession,
+        article: Any,
+    ) -> list[uuid.UUID]:
+        user_ids = list(
+            (
+                await db.execute(
+                    select(User.id).where(
+                        User.is_active.is_(True),
+                        User.deleted_at.is_(None),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        
+        title_vi = ""
+        title_en = ""
+        for t in article.translations:
+            if t.language.code == "vi":
+                title_vi = t.title
+            elif t.language.code == "en":
+                title_en = t.title
+                
+        if not title_vi:
+            title_vi = title_en or "Bài viết mới"
+        if not title_en:
+            title_en = title_vi
+            
+        title_dict = {
+            "vi": "Bài viết mới đã được xuất bản",
+            "en": "New article published"
+        }
+        message_dict = {
+            "vi": f"Bài viết '{title_vi}' đã được đăng công khai.",
+            "en": f"Article '{title_en}' has been published."
+        }
+        
+        title_json = json.dumps(title_dict, ensure_ascii=False)
+        message_json = json.dumps(message_dict, ensure_ascii=False)
+
+        for user_id in user_ids:
+            db.add(
+                Notification(
+                    recipient_id=user_id,
+                    type=NotificationType.ACTION_REQUIRED,
+                    title=title_json,
+                    message=message_json,
+                    related_entity_type="article",
+                    related_entity_id=article.id,
+                    related_url=f"/admin/articles/edit/{article.id}",
+                )
+            )
+        return user_ids
+
+    async def publish_article_event(
+        self,
+        recipient_ids: list[uuid.UUID],
+        article: Any,
+    ) -> None:
+        if redis.redis_pool is None:
+            return
+        client = aioredis.Redis(connection_pool=redis.redis_pool)
+        
+        title_vi = ""
+        title_en = ""
+        for t in article.translations:
+            if t.language.code == "vi":
+                title_vi = t.title
+            elif t.language.code == "en":
+                title_en = t.title
+                
+        if not title_vi:
+            title_vi = title_en or "Bài viết mới"
+        if not title_en:
+            title_en = title_vi
+
+        payload = json.dumps(
+            {
+                "type": NotificationType.ACTION_REQUIRED.value,
+                "title": {
+                    "vi": "Bài viết mới đã được xuất bản",
+                    "en": "New article published"
+                },
+                "message": {
+                    "vi": f"Bài viết '{title_vi}' đã được đăng công khai.",
+                    "en": f"Article '{title_en}' has been published."
+                },
+                "related_url": f"/admin/articles/edit/{article.id}",
             },
             ensure_ascii=False
         )

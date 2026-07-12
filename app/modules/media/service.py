@@ -561,8 +561,7 @@ class MediaService:
                 error_code="DIRECTORY_URL_ERROR",
             )
         
-        protocol = "https" if settings.MINIO_SECURE else "http"
-        return f"{protocol}://{settings.MINIO_ENDPOINT}/{item.bucket or settings.MINIO_BUCKET}/{item.object_key}"
+        return f"/api/v1/portal/media/file/{item.object_key}"
 
     async def generate_presigned_upload_url(
         self, filename: str, content_type: str, expires_in: int = 3600

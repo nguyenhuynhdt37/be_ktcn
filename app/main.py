@@ -16,7 +16,7 @@ from app.core.logger import setup_logging
 from app.modules.auth.router import router as auth_router, users_router
 from app.modules.audit.routers import admin_router as audit_router
 from app.modules.health.routers import portal_router as health_router
-from app.modules.media.routers import admin_router as media_admin_router
+from app.modules.media.routers import admin_router as media_admin_router, portal_router as media_portal_router
 from app.modules.menu.routers import admin_router as menu_admin_router, portal_router as menu_portal_router
 from app.modules.category.routers import admin_router as category_admin_router, portal_router as category_portal_router
 from app.modules.article.routers.admin import router as article_admin_router
@@ -144,6 +144,7 @@ app.include_router(users_router, prefix=settings.API_V1_STR)
 app.include_router(profile_router, prefix=f"{settings.API_V1_STR}/admin/profile", tags=["admin-profile"])
 
 app.include_router(media_admin_router, prefix=f"{settings.API_V1_STR}/admin/media", tags=["admin-media"])
+app.include_router(media_portal_router, prefix=f"{settings.API_V1_STR}/portal/media", tags=["portal-media"])
 app.include_router(audit_router, prefix=f"{settings.API_V1_STR}/admin/audit-logs", tags=["admin-audit-logs"])
 app.include_router(menu_admin_router, prefix=f"{settings.API_V1_STR}/admin/menus", tags=["admin-menus"])
 app.include_router(menu_portal_router, prefix=f"{settings.API_V1_STR}/portal/menus", tags=["portal-menus"])

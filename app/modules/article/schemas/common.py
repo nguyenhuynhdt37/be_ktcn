@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 from app.modules.article.models import ArticleStatus
-
+from app.core.config import resolve_html_urls
 
 def safe_getattr(obj: Any, attr: str, default: Any = None) -> Any:
     if not obj:
@@ -61,7 +61,7 @@ def build_article_resolved_before_validation(data: Any) -> Any:
                     "title": trans.title,
                     "slug": trans.slug,
                     "excerpt": trans.excerpt,
-                    "content": trans.content,
+                    "content": resolve_html_urls(trans.content),
                     "seo_title": trans.seo_title,
                     "seo_description": trans.seo_description,
                     "canonical_url": trans.canonical_url,
@@ -193,7 +193,7 @@ def build_article_resolved_before_validation(data: Any) -> Any:
         "title": safe_getattr(data, "title", ""),
         "slug": safe_getattr(data, "slug", ""),
         "excerpt": safe_getattr(data, "excerpt", None),
-        "content": safe_getattr(data, "content", ""),
+        "content": resolve_html_urls(safe_getattr(data, "content", "")),
         "seo_title": safe_getattr(data, "seo_title", None),
         "seo_description": safe_getattr(data, "seo_description", None),
         "canonical_url": safe_getattr(data, "canonical_url", None),

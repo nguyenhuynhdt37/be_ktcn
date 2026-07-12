@@ -18,10 +18,17 @@ class ProgramService:
         matched = next((t for t in item.translations if t.language.code == lang), None)
         matched = matched or next((t for t in item.translations if t.language.code == "vi"), None)
         matched = matched or (item.translations[0] if item.translations else None)
+        from app.core.config import resolve_html_urls
         for field in ("name", "slug", "short_description", "description", "career_opportunities", "admissions_info"):
-            setattr(item, field, getattr(matched, field, None) if matched else ("" if field in ("name", "slug") else None))
+            val = getattr(matched, field, None) if matched else ("" if field in ("name", "slug") else None)
+            if field in ("short_description", "description", "career_opportunities", "admissions_info"):
+                val = resolve_html_urls(val)
+            setattr(item, field, val)
         item.translations_map = {
-            t.language.code: {field: getattr(t, field) for field in ("name", "slug", "short_description", "description", "career_opportunities", "admissions_info")}
+            t.language.code: {
+                field: (resolve_html_urls(getattr(t, field)) if field in ("short_description", "description", "career_opportunities", "admissions_info") else getattr(t, field))
+                for field in ("name", "slug", "short_description", "description", "career_opportunities", "admissions_info")
+            }
             for t in item.translations
         }
         return item

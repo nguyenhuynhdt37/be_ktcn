@@ -1,6 +1,7 @@
 import uuid
 from typing import Literal, Optional, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.core.config import resolve_html_urls
 
 
 def safe_getattr(obj: Any, attr: str, default: Any = None) -> Any:
@@ -75,11 +76,11 @@ def build_department_resolved(data: Any) -> dict:
             if lang_code:
                 translations_dict[lang_code] = {
                     "name": trans.name,
-                    "description": trans.description,
-                    "mission": getattr(trans, "mission", None),
-                    "vision": getattr(trans, "vision", None),
-                    "history": getattr(trans, "history", None),
-                    "research_overview": getattr(trans, "research_overview", None),
+                    "description": resolve_html_urls(trans.description),
+                    "mission": resolve_html_urls(getattr(trans, "mission", None)),
+                    "vision": resolve_html_urls(getattr(trans, "vision", None)),
+                    "history": resolve_html_urls(getattr(trans, "history", None)),
+                    "research_overview": resolve_html_urls(getattr(trans, "research_overview", None)),
                     "seo_title": getattr(trans, "seo_title", None),
                     "seo_description": getattr(trans, "seo_description", None),
                     "slug": trans.slug,
@@ -106,11 +107,11 @@ def build_department_resolved(data: Any) -> dict:
         "is_translated": is_translated,
         "translations": translations_dict,
         "name": safe_getattr(data, "name", ""),
-        "description": safe_getattr(data, "description", None),
-        "mission": safe_getattr(data, "mission", None),
-        "vision": safe_getattr(data, "vision", None),
-        "history": safe_getattr(data, "history", None),
-        "research_overview": safe_getattr(data, "research_overview", None),
+        "description": resolve_html_urls(safe_getattr(data, "description", None)),
+        "mission": resolve_html_urls(safe_getattr(data, "mission", None)),
+        "vision": resolve_html_urls(safe_getattr(data, "vision", None)),
+        "history": resolve_html_urls(safe_getattr(data, "history", None)),
+        "research_overview": resolve_html_urls(safe_getattr(data, "research_overview", None)),
         "seo_title": safe_getattr(data, "seo_title", None),
         "seo_description": safe_getattr(data, "seo_description", None),
         "slug": safe_getattr(data, "slug", ""),

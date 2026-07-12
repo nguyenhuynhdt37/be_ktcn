@@ -119,3 +119,11 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+
+def resolve_html_urls(html_content: Any) -> Any:
+    if not html_content or not isinstance(html_content, str):
+        return html_content
+    protocol = "https" if settings.MINIO_SECURE else "http"
+    base_url = f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/"
+    return html_content.replace('/api/v1/portal/media/file/', base_url)
+

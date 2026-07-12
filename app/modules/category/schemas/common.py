@@ -2,6 +2,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.core.config import resolve_html_urls
 
 
 def safe_getattr(obj: Any, attr: str, default: Any = None) -> Any:
@@ -64,7 +65,7 @@ def build_seo_resolved_before_validation(data: Any) -> Any:
                 translations_dict[lang_code] = {
                     "name": trans.name,
                     "slug": trans.slug,
-                    "description": trans.description,
+                    "description": resolve_html_urls(trans.description),
                     "seo_title": trans.seo_title,
                     "seo_description": trans.seo_description,
                     "is_translated": True
@@ -84,7 +85,7 @@ def build_seo_resolved_before_validation(data: Any) -> Any:
         "translations": translations_dict,
         "name": safe_getattr(data, "name", ""),
         "slug": safe_getattr(data, "slug", ""),
-        "description": safe_getattr(data, "description", None),
+        "description": resolve_html_urls(safe_getattr(data, "description", None)),
         "seo_title": safe_getattr(data, "seo_title", None),
         "seo_description": safe_getattr(data, "seo_description", None),
         "children": safe_getattr(data, "children", [])

@@ -21,6 +21,7 @@ router = APIRouter()
 
 @router.get("", response_model=PortalArticlePaginationResponse)
 async def list_all_articles_portal(
+    request: Request,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
     search: Optional[str] = Query(default=None),
@@ -40,7 +41,7 @@ async def list_all_articles_portal(
     published_to: Optional[datetime] = Query(default=None),
     sort_by: str = Query(default="publish_at"),
     sort_dir: str = Query(default="desc"),
-    lang: str = Query(default="vi"),
+    lang: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> PortalArticlePaginationResponse:
     allowed_sort_fields = {
@@ -96,6 +97,9 @@ async def list_all_articles_portal(
             if item:
                 parsed_exclude_category_slugs.append(item)
 
+    from app.core.language import get_locale_from_request
+    resolved_lang = get_locale_from_request(request, lang)
+
     items, total = await article_service.list_all_articles_portal(
         db=db,
         page=page,
@@ -115,7 +119,7 @@ async def list_all_articles_portal(
         published_to=published_to,
         sort_by=sort_by,
         sort_dir=sort_dir,
-        lang=lang,
+        lang=resolved_lang,
     )
 
     total_pages = (total + page_size - 1) // page_size if page_size > 0 else 0
@@ -138,7 +142,7 @@ async def get_article_detail_portal(
     slug: str,
     request: Request,
     response: Response,
-    lang: str = Query(default="vi"),
+    lang: Optional[str] = Query(default=None),
     guest_uuid: Optional[str] = Cookie(None),
     db: AsyncSession = Depends(get_db),
     redis_client: aioredis.Redis = Depends(get_redis),
@@ -157,11 +161,14 @@ async def get_article_detail_portal(
     else:
         client_ip = request.client.host if request.client else "unknown"
 
+    from app.core.language import get_locale_from_request
+    resolved_lang = get_locale_from_request(request, lang)
+
     # 3. Lấy chi tiết bài viết và tăng view (có kiểm tra trùng lặp qua Redis)
     article = await article_service.get_article_by_slug_portal(
         db, 
         slug=slug, 
-        lang=lang, 
+        lang=resolved_lang, 
         guest_uuid=guest_uuid, 
         client_ip=client_ip, 
         redis_client=redis_client

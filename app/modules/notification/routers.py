@@ -1,9 +1,10 @@
 import asyncio
 import json
 import uuid
+from typing import Optional
 
 import redis.asyncio as aioredis
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,20 +26,24 @@ router = APIRouter()
 
 @router.get("", response_model=NotificationPaginationResponse)
 async def list_notifications(
+    request: Request,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     unread_only: bool = Query(default=False),
-    lang: str = Query(default="vi"),
+    lang: Optional[str] = Query(default=None),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> NotificationPaginationResponse:
+    from app.core.language import get_locale_from_request
+    resolved_lang = get_locale_from_request(request, lang)
+
     items, total, unread_count = await notification_service.list_for_user(
         db,
         recipient_id=current_user.id,
         page=page,
         page_size=page_size,
         unread_only=unread_only,
-        lang=lang,
+        lang=resolved_lang,
     )
     total_pages = (total + page_size - 1) // page_size if total else 0
     return NotificationPaginationResponse(

@@ -28,6 +28,7 @@ async def list_notifications(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     unread_only: bool = Query(default=False),
+    lang: str = Query(default="vi"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> NotificationPaginationResponse:
@@ -37,6 +38,7 @@ async def list_notifications(
         page=page,
         page_size=page_size,
         unread_only=unread_only,
+        lang=lang,
     )
     total_pages = (total + page_size - 1) // page_size if total else 0
     return NotificationPaginationResponse(
@@ -69,6 +71,7 @@ async def unread_count(
 @router.patch("/{notification_id}/read", response_model=NotificationResponse)
 async def mark_notification_read(
     notification_id: uuid.UUID,
+    lang: str = Query(default="vi"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> NotificationResponse:
@@ -76,7 +79,9 @@ async def mark_notification_read(
         db,
         notification_id=notification_id,
         recipient_id=current_user.id,
+        lang=lang,
     )
+
     if not item:
         raise NotFoundException(
             message="Không tìm thấy thông báo",

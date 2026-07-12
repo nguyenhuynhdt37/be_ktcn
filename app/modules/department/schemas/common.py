@@ -49,13 +49,13 @@ def build_department_resolved(data: Any) -> dict:
 
     translations_dict = {
         "vi": {
-            "name": "", "description": "", "short_description": "",
+            "name": "", "description": "",
             "mission": None, "vision": None, "history": None,
             "research_overview": None, "seo_title": None, "seo_description": None,
             "slug": "", "is_translated": False,
         },
         "en": {
-            "name": "", "description": "", "short_description": "",
+            "name": "", "description": "",
             "mission": None, "vision": None, "history": None,
             "research_overview": None, "seo_title": None, "seo_description": None,
             "slug": "", "is_translated": False,
@@ -76,7 +76,6 @@ def build_department_resolved(data: Any) -> dict:
                 translations_dict[lang_code] = {
                     "name": trans.name,
                     "description": trans.description,
-                    "short_description": getattr(trans, "short_description", None),
                     "mission": getattr(trans, "mission", None),
                     "vision": getattr(trans, "vision", None),
                     "history": getattr(trans, "history", None),
@@ -103,13 +102,11 @@ def build_department_resolved(data: Any) -> dict:
         "sort_order": safe_getattr(data, "sort_order", 0),
         "display_order": safe_getattr(data, "display_order", None),
         "is_active": safe_getattr(data, "is_active", True),
-        "content_status": safe_getattr(data, "content_status", "draft"),
         "head_staff_id": safe_getattr(data, "head_staff_id", None),
         "is_translated": is_translated,
         "translations": translations_dict,
         "name": safe_getattr(data, "name", ""),
         "description": safe_getattr(data, "description", None),
-        "short_description": safe_getattr(data, "short_description", None),
         "mission": safe_getattr(data, "mission", None),
         "vision": safe_getattr(data, "vision", None),
         "history": safe_getattr(data, "history", None),
@@ -128,7 +125,6 @@ class TranslationItemResponse(BaseModel):
     """Schema cho từng bản dịch của Department."""
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
-    short_description: Optional[str] = None
     mission: Optional[str] = None
     vision: Optional[str] = None
     history: Optional[str] = None
@@ -155,7 +151,6 @@ class DepartmentCreate(BaseModel):
     sort_order: int = 0
     display_order: Optional[int] = None
     is_active: bool = True
-    content_status: Literal["draft", "review", "published"] = "draft"
     head_staff_id: Optional[uuid.UUID] = None
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch bộ môn")
 
@@ -182,7 +177,6 @@ class DepartmentUpdate(BaseModel):
     sort_order: Optional[int] = None
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
-    content_status: Optional[Literal["draft", "review", "published"]] = None
     head_staff_id: Optional[uuid.UUID] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 

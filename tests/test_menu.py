@@ -26,18 +26,19 @@ async def test_menu_lifecycle_and_i18n(client: AsyncClient, admin_headers: dict,
     # 2. Tạo Menu Item đa ngôn ngữ (Academics / Đào tạo)
     item_payload = {
         "parent_id": None,
-        "target_type": None,
+        "target_type": "EXTERNAL_LINK",
         "target_id": None,
-        "external_url": None,
         "open_in_new_tab": False,
         "sort_order": 10,
         "is_visible": True,
         "translations": {
             "vi": {
-                "title": "Đào tạo"
+                "title": "Đào tạo",
+                "external_url": "https://google.com/vi"
             },
             "en": {
-                "title": "Academics"
+                "title": "Academics",
+                "external_url": "https://google.com/en"
             }
         }
     }
@@ -46,27 +47,33 @@ async def test_menu_lifecycle_and_i18n(client: AsyncClient, admin_headers: dict,
     item_data = res_item.json()
     item_id = item_data["id"]
     assert item_data["title"] == "Đào tạo"  # mặc định tiếng Việt ở Admin
+    assert item_data["translations"]["vi"]["external_url"] == "https://google.com/vi"
     assert item_data["translations"]["en"]["title"] == "Academics"
+    assert item_data["translations"]["en"]["external_url"] == "https://google.com/en"
 
     # 3. Lấy chi tiết Menu Item qua Admin API
     res_detail = await client.get(f"/api/v1/admin/menus/{menu_id}/items/{item_id}", headers=admin_headers)
     assert res_detail.status_code == 200
     assert res_detail.json()["translations"]["en"]["title"] == "Academics"
+    assert res_detail.json()["translations"]["en"]["external_url"] == "https://google.com/en"
 
     # 4. Cập nhật bản dịch của Menu Item
     update_payload = {
         "translations": {
             "vi": {
-                "title": "Chương trình đào tạo"
+                "title": "Chương trình đào tạo",
+                "external_url": "https://new-google.com/vi"
             },
             "en": {
-                "title": "Academic Programs"
+                "title": "Academic Programs",
+                "external_url": "https://new-google.com/en"
             }
         }
     }
     res_update = await client.put(f"/api/v1/admin/menus/{menu_id}/items/{item_id}", json=update_payload, headers=admin_headers)
     assert res_update.status_code == 200
     assert res_update.json()["translations"]["en"]["title"] == "Academic Programs"
+    assert res_update.json()["translations"]["en"]["external_url"] == "https://new-google.com/en"
 
     # 5. Gọi Portal API Tree lấy menu bằng tiếng Anh
     res_portal_en = await client.get(f"/api/v1/portal/menus/{menu_code}/tree?lang=en")
@@ -74,6 +81,7 @@ async def test_menu_lifecycle_and_i18n(client: AsyncClient, admin_headers: dict,
     portal_en_data = res_portal_en.json()
     assert len(portal_en_data["items"]) == 1
     assert portal_en_data["items"][0]["title"] == "Academic Programs"
+    assert portal_en_data["items"][0]["external_url"] == "https://new-google.com/en"
     assert "translations" not in portal_en_data["items"][0]  # không được expose translations
 
     # 6. Gọi Portal API Tree lấy menu bằng tiếng Việt
@@ -81,6 +89,7 @@ async def test_menu_lifecycle_and_i18n(client: AsyncClient, admin_headers: dict,
     assert res_portal_vi.status_code == 200
     portal_vi_data = res_portal_vi.json()
     assert portal_vi_data["items"][0]["title"] == "Chương trình đào tạo"
+    assert portal_vi_data["items"][0]["external_url"] == "https://new-google.com/vi"
 
     # 7. Test reorder (kéo thả) danh sách menu item
     # Tạo thêm một menu item con

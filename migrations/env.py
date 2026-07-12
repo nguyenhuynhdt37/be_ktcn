@@ -27,6 +27,8 @@ from app.modules.ai_hub.models import *  # noqa: F401, F403
 from app.modules.statistics.models import *  # noqa: F401, F403
 from app.modules.consultation.models import *  # noqa: F401, F403
 from app.modules.notification.models import *  # noqa: F401, F403
+from app.modules.program.models import *  # noqa: F401, F403
+from app.modules.gallery.models import *  # noqa: F401, F403
 
 
 

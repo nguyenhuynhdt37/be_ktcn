@@ -5,7 +5,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.modules.banner.models import Banner, BannerPosition
+from app.modules.banner.models import Banner, BannerPosition, BannerTargetType
 from app.modules.banner.schemas import BannerCreate, BannerUpdate
 from app.shared.sort_order import sort_order_service
 
@@ -108,6 +108,27 @@ class BannerService:
 
     async def create_banner(self, db: AsyncSession, payload: BannerCreate) -> Banner:
         """Tạo mới banner và tự động chuẩn hóa sort_order."""
+        target_type = payload.target_type
+        article_id = payload.article_id
+        link_url = payload.link_url
+
+        if target_type == BannerTargetType.ARTICLE:
+            if not article_id:
+                raise BadRequestException(
+                    message="Bài viết liên kết không được để trống khi chọn loại ARTICLE",
+                    error_code="ARTICLE_ID_REQUIRED"
+                )
+            from app.modules.article.models import Article
+            article_exists = await db.get(Article, article_id)
+            if not article_exists or article_exists.deleted_at is not None:
+                raise BadRequestException(
+                    message="Bài viết liên kết không tồn tại",
+                    error_code="ARTICLE_NOT_FOUND"
+                )
+            link_url = None
+        else:
+            article_id = None
+
         # Chuẩn bị sort_order
         validated_order = await sort_order_service.prepare_insert(
             db,
@@ -123,13 +144,15 @@ class BannerService:
             description=payload.description,
             desktop_image_object_key=payload.desktop_image_object_key,
             mobile_image_object_key=payload.mobile_image_object_key,
-            link_url=payload.link_url,
+            link_url=link_url,
             open_in_new_tab=payload.open_in_new_tab,
             position=payload.position,
             sort_order=validated_order,
             start_at=payload.start_at,
             end_at=payload.end_at,
-            is_active=payload.is_active
+            is_active=payload.is_active,
+            article_id=article_id,
+            target_type=target_type
         )
         db.add(db_obj)
         await db.flush()
@@ -170,6 +193,29 @@ class BannerService:
             del update_data["position"]
         if "sort_order" in update_data:
             del update_data["sort_order"]
+
+        current_target_type = update_data.get("target_type") or db_obj.target_type
+        if current_target_type == BannerTargetType.ARTICLE:
+            # check article_id presence
+            has_article_id = ("article_id" in update_data and update_data["article_id"] is not None) or (not "article_id" in update_data and db_obj.article_id is not None)
+            if not has_article_id:
+                raise BadRequestException(
+                    message="Bài viết liên kết không được để trống khi chọn loại ARTICLE",
+                    error_code="ARTICLE_ID_REQUIRED"
+                )
+            
+            target_article_id = update_data.get("article_id") or db_obj.article_id
+            if "article_id" in update_data:
+                from app.modules.article.models import Article
+                article_exists = await db.get(Article, target_article_id)
+                if not article_exists or article_exists.deleted_at is not None:
+                    raise BadRequestException(
+                        message="Bài viết liên kết không tồn tại",
+                        error_code="ARTICLE_NOT_FOUND"
+                    )
+            update_data["link_url"] = None
+        else:
+            update_data["article_id"] = None
 
         for field, value in update_data.items():
             setattr(db_obj, field, value)

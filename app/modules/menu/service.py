@@ -129,7 +129,7 @@ class MenuService:
         """Convert MenuItem model thành MenuItemResponse với computed has_link và target_info."""
         res_dict = build_menu_item_resolved(item)
         res_dict["target_info"] = target_info
-        res_dict["has_link"] = item.target_type is not None or item.external_url is not None
+        res_dict["has_link"] = item.target_type is not None or res_dict.get("external_url") is not None
         # Đảm bảo giữ nguyên các trường kiểu datetime nếu có
         res_dict["created_at"] = getattr(item, "created_at", None)
         res_dict["updated_at"] = getattr(item, "updated_at", None)
@@ -298,6 +298,7 @@ class MenuService:
             return item
 
         item.title = ""
+        item.external_url = None
         target_trans = None
         for t in getattr(item, "translations", []):
             if t.language and t.language.code == lang:
@@ -315,6 +316,7 @@ class MenuService:
 
         if target_trans:
             item.title = target_trans.title
+            item.external_url = target_trans.external_url
 
         return item
 
@@ -352,7 +354,6 @@ class MenuService:
             "parent_id": data.parent_id,
             "target_type": data.target_type,
             "target_id": data.target_id,
-            "external_url": data.external_url,
             "open_in_new_tab": data.open_in_new_tab,
             "sort_order": data.sort_order,
             "is_visible": data.is_visible,
@@ -377,7 +378,8 @@ class MenuService:
             translation = MenuItemTranslation(
                 menu_item_id=item.id,
                 language_id=lang_id,
-                title=trans_data.title
+                title=trans_data.title,
+                external_url=trans_data.external_url
             )
             db.add(translation)
 
@@ -480,14 +482,17 @@ class MenuService:
                 if not lang_id:
                     continue
                 title_val = trans_data.get("title") if isinstance(trans_data, dict) else getattr(trans_data, "title", "")
+                url_val = trans_data.get("external_url") if isinstance(trans_data, dict) else getattr(trans_data, "external_url", None)
                 if lang_code in existing_trans:
                     existing_trans[lang_code].title = title_val
+                    existing_trans[lang_code].external_url = url_val
                     db.add(existing_trans[lang_code])
                 else:
                     new_trans = MenuItemTranslation(
                         menu_item_id=item.id,
                         language_id=lang_id,
-                        title=title_val
+                        title=title_val,
+                        external_url=url_val
                     )
                     db.add(new_trans)
 
@@ -510,10 +515,28 @@ class MenuService:
         self, db: AsyncSession, menu_id: uuid.UUID, item_id: uuid.UUID
     ) -> None:
         """Xóa menu item (cascade xóa children)."""
-        item = await self._get_menu_item(db, menu_id, item_id)
+        from app.modules.menu.models import MenuItemTranslation
+        query = select(MenuItem).where(
+            MenuItem.id == item_id, MenuItem.menu_id == menu_id
+        ).options(
+            selectinload(MenuItem.translations).selectinload(MenuItemTranslation.language)
+        )
+        result = await db.execute(query)
+        item = result.scalar_one_or_none()
+        if not item:
+            raise NotFoundException(
+                message="Không tìm thấy menu item",
+                error_code="MENU_ITEM_NOT_FOUND",
+                details={"menu_id": str(menu_id), "item_id": str(item_id)},
+            )
+
+        self._apply_translation(item, lang="vi")
+        item_title = item.title
+
         await db.delete(item)
         await db.flush()
-        logger.info(f"Deleted menu item: {item.title} (id={item_id})")
+        logger.info(f"Deleted menu item: {item_title} (id={item_id})")
+
 
     # ──────────────────────────────────────────
     # Tree & Reorder
@@ -581,7 +604,7 @@ class MenuService:
         for item in items:
             res_dict = build_menu_item_resolved(item)
             res_dict["target_info"] = resolved_map.get(item.target_id) if item.target_id else None
-            res_dict["has_link"] = item.target_type is not None or item.external_url is not None
+            res_dict["has_link"] = item.target_type is not None or res_dict.get("external_url") is not None
             res_dict["children"] = []
             node = MenuItemTreeNode(**res_dict)
             node_map[item.id] = node

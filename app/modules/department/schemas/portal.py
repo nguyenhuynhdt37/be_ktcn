@@ -7,8 +7,8 @@ from app.modules.gallery.schemas import GalleryResponse
 from app.modules.article.schemas.portal import PortalArticleListResponse
 
 
-class PortalDepartmentResponse(BaseModel):
-    """Response thông tin Bộ môn làm phẳng (đã dịch) cho Portal Client."""
+class PortalDepartmentListResponse(BaseModel):
+    """Response thông tin Bộ môn rút gọn cho trang Danh sách (không kèm trường HTML nặng)."""
     id: uuid.UUID
     code: Optional[str] = None
     unit_type: str
@@ -24,13 +24,6 @@ class PortalDepartmentResponse(BaseModel):
     head_staff_id: Optional[uuid.UUID] = None
     name: str = ""
     description: Optional[str] = None
-    short_description: Optional[str] = None
-    mission: Optional[str] = None
-    vision: Optional[str] = None
-    history: Optional[str] = None
-    research_overview: Optional[str] = None
-    seo_title: Optional[str] = None
-    seo_description: Optional[str] = None
     slug: str = ""
     staff_count: int = 0
 
@@ -40,6 +33,17 @@ class PortalDepartmentResponse(BaseModel):
     @classmethod
     def resolve_department_before_validation(cls, data: Any) -> Any:
         return build_department_resolved(data)
+
+
+class PortalDepartmentResponse(PortalDepartmentListResponse):
+    """Response chi tiết Bộ môn đầy đủ (có kèm các trường HTML sứ mệnh, lịch sử...)."""
+    mission: Optional[str] = None
+    vision: Optional[str] = None
+    history: Optional[str] = None
+    research_overview: Optional[str] = None
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
+
 
 
 class DepartmentStaffSummary(BaseModel):

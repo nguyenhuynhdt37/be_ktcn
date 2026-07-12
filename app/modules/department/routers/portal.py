@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.modules.department.schemas import PortalDepartmentResponse, PortalDepartmentOverviewResponse
+from app.modules.department.schemas import (
+    PortalDepartmentListResponse,
+    PortalDepartmentResponse,
+    PortalDepartmentOverviewResponse,
+)
 from app.modules.department.service import department_service
 
 portal_router = APIRouter()
@@ -21,12 +25,15 @@ def resolve_language(accept_language: Optional[str], lang: Optional[str]) -> str
     return "vi"
 
 
-@portal_router.get("", response_model=list[PortalDepartmentResponse])
+@portal_router.get("", response_model=list[PortalDepartmentListResponse])
 async def list_departments_portal(
     accept_language: Optional[str] = Header(None, alias="Accept-Language"),
     lang: Optional[str] = Query(None, description="Mã ngôn ngữ (vi, en)"),
+    unit_type: Optional[str] = Query(None, description="Lọc theo loại đơn vị (school, faculty, department, office, center, lab)"),
+    search: Optional[str] = Query(None, description="Tìm kiếm theo tên hoặc mô tả"),
     db: AsyncSession = Depends(get_db),
-) -> list[PortalDepartmentResponse]:
+) -> list[PortalDepartmentListResponse]:
+
     """
     [Portal Website] Lấy danh sách bộ môn đã dịch và làm phẳng (chỉ trả về bộ môn active).
     """
@@ -43,6 +50,8 @@ async def list_departments_portal(
     departments, _ = await department_service.list_departments(
         db=db,
         is_active=True,
+        search=search,
+        unit_type=unit_type,
         sort_by="sort_order",
         order="asc",
         page=1,
@@ -50,6 +59,7 @@ async def list_departments_portal(
         lang=selected_lang,
     )
     return [PortalDepartmentResponse.model_validate(d) for d in departments]
+
 
 
 @portal_router.get("/{slug}/overview", response_model=PortalDepartmentOverviewResponse)

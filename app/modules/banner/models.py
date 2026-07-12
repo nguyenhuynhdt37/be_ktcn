@@ -1,8 +1,9 @@
 import enum
+import uuid
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, Enum, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text, Enum, text, ForeignKey, CheckConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models.base import BaseModel
 
@@ -13,6 +14,11 @@ class BannerPosition(str, enum.Enum):
     NEWS_TOP = "NEWS_TOP"
     CATEGORY_TOP = "CATEGORY_TOP"
     PAGE_TOP = "PAGE_TOP"
+
+
+class BannerTargetType(str, enum.Enum):
+    ARTICLE = "ARTICLE"
+    EXTERNAL = "EXTERNAL"
 
 
 class Banner(BaseModel):
@@ -41,12 +47,34 @@ class Banner(BaseModel):
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    article_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("articles.id", ondelete="SET NULL"), nullable=True
+    )
+
+    target_type: Mapped[BannerTargetType] = mapped_column(
+        Enum(BannerTargetType, name="banner_target_type", native_enum=False),
+        default=BannerTargetType.EXTERNAL,
+        nullable=False
+    )
+
+    # Relationships
+    article: Mapped[Optional["Article"]] = relationship(
+        "Article", lazy="selectin"
+    )
+
     # Soft Delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), default=None, nullable=True
     )
 
     __table_args__ = (
+        CheckConstraint(
+            """
+            (target_type = 'ARTICLE' AND article_id IS NOT NULL AND link_url IS NULL)
+            OR (target_type = 'EXTERNAL' AND article_id IS NULL)
+            """,
+            name="chk_banner_target_consistency"
+        ),
         Index("idx_banner_position", "position"),
         Index(
             "idx_banner_active",

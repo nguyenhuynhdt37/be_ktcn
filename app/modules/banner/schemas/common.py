@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.modules.banner.models import BannerPosition
+from app.modules.banner.models import BannerPosition, BannerTargetType
 
 class TrimBaseModel(BaseModel):
     """
@@ -30,6 +30,8 @@ class BannerBase(TrimBaseModel):
     start_at: Optional[datetime] = Field(None, description="Thời gian bắt đầu hiển thị hiệu lực")
     end_at: Optional[datetime] = Field(None, description="Thời gian kết thúc hiển thị hiệu lực")
     is_active: bool = Field(True, description="Trạng thái hoạt động")
+    article_id: Optional[uuid.UUID] = Field(None, description="ID bài viết liên kết tương ứng")
+    target_type: BannerTargetType = Field(BannerTargetType.EXTERNAL, description="Loại liên kết của banner")
 
 
 class BannerCreate(BannerBase):
@@ -48,6 +50,8 @@ class BannerUpdate(TrimBaseModel):
     start_at: Optional[datetime] = Field(None, description="Thời gian bắt đầu hiển thị hiệu lực")
     end_at: Optional[datetime] = Field(None, description="Thời gian kết thúc hiển thị hiệu lực")
     is_active: Optional[bool] = Field(None, description="Trạng thái hoạt động")
+    article_id: Optional[uuid.UUID] = Field(None, description="ID bài viết liên kết tương ứng")
+    target_type: Optional[BannerTargetType] = Field(None, description="Loại liên kết của banner")
 
 
 class BannerStatusUpdate(BaseModel):
@@ -67,6 +71,8 @@ class BannerResponse(BaseModel):
     start_at: Optional[datetime] = None
     end_at: Optional[datetime] = None
     is_active: bool
+    article_id: Optional[uuid.UUID] = None
+    target_type: BannerTargetType
     created_at: datetime
     updated_at: datetime
 

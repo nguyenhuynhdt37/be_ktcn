@@ -33,10 +33,19 @@ async def setup_test_user():
             )
             db.add(user)
             await db.commit()
+        elif not user.is_active:
+            user.is_active = True
+            db.add(user)
+            await db.commit()
         return "admin_api_test", "password"
 
 async def test_banner_flow():
     username, password = await setup_test_user()
+    
+    from sqlalchemy import delete
+    async with SessionLocal() as db:
+        await db.execute(delete(Banner))
+        await db.commit()
     
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
         logger.info("🔑 1. Đăng nhập để lấy Token")
@@ -52,7 +61,7 @@ async def test_banner_flow():
         logger.info("🏢 2. Tạo mới các banner test ở các vị trí khác nhau")
         
         # A ở HOME_HERO
-        res_a = await ac.post("/api/v1/banners", json={
+        res_a = await ac.post("/api/v1/admin/banners", json={
             "title": f"Banner A {suffix}",
             "desktop_image_object_key": f"banners/desktop_a_{suffix}.jpg",
             "position": "HOME_HERO",
@@ -63,7 +72,7 @@ async def test_banner_flow():
         assert res_a.json()["sort_order"] == 0
 
         # B ở HOME_HERO
-        res_b = await ac.post("/api/v1/banners", json={
+        res_b = await ac.post("/api/v1/admin/banners", json={
             "title": f"Banner B {suffix}",
             "desktop_image_object_key": f"banners/desktop_b_{suffix}.jpg",
             "position": "HOME_HERO",
@@ -74,7 +83,7 @@ async def test_banner_flow():
         assert res_b.json()["sort_order"] == 1
 
         # C ở NEWS_TOP
-        res_c = await ac.post("/api/v1/banners", json={
+        res_c = await ac.post("/api/v1/admin/banners", json={
             "title": f"Banner C {suffix}",
             "desktop_image_object_key": f"banners/desktop_c_{suffix}.jpg",
             "position": "NEWS_TOP",
@@ -85,7 +94,7 @@ async def test_banner_flow():
         assert res_c.json()["sort_order"] == 0
 
         # D ở HOME_HERO, chèn vào vị trí 1
-        res_d = await ac.post("/api/v1/banners", json={
+        res_d = await ac.post("/api/v1/admin/banners", json={
             "title": f"Banner D {suffix}",
             "desktop_image_object_key": f"banners/desktop_d_{suffix}.jpg",
             "position": "HOME_HERO",
@@ -99,7 +108,7 @@ async def test_banner_flow():
 
         # 3. Kiểm tra danh sách Portal HOME_HERO
         logger.info("🔍 3. Kiểm tra API Portal và thứ tự sort_order...")
-        portal_res = await ac.get("/api/v1/banners?position=HOME_HERO")
+        portal_res = await ac.get("/api/v1/portal/banners?position=HOME_HERO")
         assert portal_res.status_code == 200
         items_portal = [x for x in portal_res.json() if suffix in x["title"]]
         assert len(items_portal) == 3
@@ -115,13 +124,13 @@ async def test_banner_flow():
 
         # 4. Kiểm tra phân trang Admin
         logger.info("📋 4. Kiểm tra API phân trang Admin...")
-        admin_res = await ac.get("/api/v1/banners/admin?page_size=100", headers=headers)
+        admin_res = await ac.get("/api/v1/admin/banners?page_size=100", headers=headers)
         assert admin_res.status_code == 200
         assert admin_res.json()["total_items"] >= 4
 
         # 5. Di chuyển D sang NEWS_TOP
         logger.info("🔄 5. Di chuyển D sang vị trí NEWS_TOP...")
-        move_res = await ac.put(f"/api/v1/banners/{id_d}", json={
+        move_res = await ac.put(f"/api/v1/admin/banners/{id_d}", json={
             "position": "NEWS_TOP",
             "sort_order": 999
         }, headers=headers)
@@ -130,7 +139,7 @@ async def test_banner_flow():
         assert move_res.json()["sort_order"] == 1 # C: 0, D: 1
         
         # Kiểm tra HOME_HERO dồn hàng
-        home_res = await ac.get("/api/v1/banners?position=HOME_HERO")
+        home_res = await ac.get("/api/v1/portal/banners?position=HOME_HERO")
         home_items = [x for x in home_res.json() if suffix in x["title"]]
         assert len(home_items) == 2
         home_mapping = {x["id"]: x["sort_order"] for x in home_items}
@@ -140,11 +149,11 @@ async def test_banner_flow():
 
         # 6. Xóa mềm banner A
         logger.info("🗑️ 6. Xóa mềm banner A...")
-        del_res = await ac.delete(f"/api/v1/banners/{id_a}", headers=headers)
+        del_res = await ac.delete(f"/api/v1/admin/banners/{id_a}", headers=headers)
         assert del_res.status_code == 204
         
         # Kiểm tra HOME_HERO dồn hàng tiếp
-        home_res2 = await ac.get("/api/v1/banners?position=HOME_HERO")
+        home_res2 = await ac.get("/api/v1/portal/banners?position=HOME_HERO")
         home_items2 = [x for x in home_res2.json() if suffix in x["title"]]
         assert len(home_items2) == 1
         assert home_items2[0]["id"] == id_b

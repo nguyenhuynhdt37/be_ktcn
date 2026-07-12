@@ -10,6 +10,8 @@ from app.modules.department.schemas.admin import (
     DepartmentSEOAnalyzeRequest,
 )
 from app.modules.department.schemas.portal import (
+    PortalDepartmentListResponse,
     PortalDepartmentResponse,
     PortalDepartmentOverviewResponse,
 )
+

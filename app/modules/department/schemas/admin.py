@@ -21,13 +21,11 @@ class AdminDepartmentResponse(BaseModel):
     sort_order: int
     display_order: Optional[int] = None
     is_active: bool
-    content_status: str
     head_staff_id: Optional[uuid.UUID] = None
     is_translated: dict[str, bool] = {}
     translations: dict[str, Any] = {}
     name: str = ""
     description: Optional[str] = None
-    short_description: Optional[str] = None
     mission: Optional[str] = None
     vision: Optional[str] = None
     history: Optional[str] = None

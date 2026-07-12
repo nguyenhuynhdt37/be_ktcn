@@ -63,7 +63,6 @@ class DepartmentService:
 
         department.name = matched.name if matched else ""
         department.description = matched.description if matched else None
-        department.short_description = matched.short_description if matched else None
         department.mission = matched.mission if matched else None
         department.vision = matched.vision if matched else None
         department.history = matched.history if matched else None
@@ -86,6 +85,7 @@ class DepartmentService:
         db: AsyncSession,
         search: Optional[str] = None,
         is_active: Optional[bool] = None,
+        unit_type: Optional[str] = None,
         sort_by: str = "sort_order",
         order: str = "asc",
         page: int = 1,
@@ -97,6 +97,9 @@ class DepartmentService:
 
         if is_active is not None:
             stmt = stmt.where(Department.is_active == is_active)
+
+        if unit_type:
+            stmt = stmt.where(Department.unit_type == unit_type)
 
         if search:
             # Tìm kiếm qua tên hoặc mô tả trong bảng dịch
@@ -168,16 +171,18 @@ class DepartmentService:
         return dept
 
     async def get_department_by_slug(self, db: AsyncSession, slug: str, lang: str = "vi") -> Department:
-        stmt = (
-            select(Department)
-            .join(DepartmentTranslation)
-            .join(Language, DepartmentTranslation.language_id == Language.id)
-            .where(
-                DepartmentTranslation.slug == slug,
-                Language.code == lang,
-                Department.deleted_at.is_(None)
-            )
+        # Find department_id by slug in any translation record
+        slug_stmt = (
+            select(DepartmentTranslation.department_id)
+            .where(DepartmentTranslation.slug == slug)
         )
+        slug_res = await db.execute(slug_stmt)
+        dept_id = slug_res.scalar_one_or_none()
+        if not dept_id:
+            raise NotFoundException("Không tìm thấy bộ môn")
+
+        # Load Department by ID
+        stmt = select(Department).where(Department.id == dept_id, Department.deleted_at.is_(None))
         result = await db.execute(stmt)
         dept = result.scalar_one_or_none()
         if not dept:
@@ -194,6 +199,7 @@ class DepartmentService:
         dept.staff_count = count_res.scalar() or 0
 
         return dept
+
 
     async def create_department(self, db: AsyncSession, data: DepartmentCreate) -> Department:
         lang_map = await self.get_language_map(db)
@@ -212,13 +218,16 @@ class DepartmentService:
         if data.head_staff_id:
             await self._validate_head_staff(db, data.head_staff_id)
 
-        # 3. Tự động đẩy các department có sort_order >= data.sort_order
-        from sqlalchemy import update
-        await db.execute(
-            update(Department)
-            .where(Department.deleted_at.is_(None), Department.sort_order >= data.sort_order)
-            .values(sort_order=Department.sort_order + 1)
+        # 3. Lấy tất cả các bộ môn hiện có để chèn và chuẩn hóa vị trí sắp xếp (sort_order)
+        stmt_all = (
+            select(Department)
+            .where(Department.deleted_at.is_(None))
+            .order_by(Department.sort_order.asc(), Department.created_at.desc())
         )
+        res_all = await db.execute(stmt_all)
+        all_depts = list(res_all.scalars().all())
+
+        new_sort = max(0, min(data.sort_order, len(all_depts)))
 
         dept = Department(
             code=data.code,
@@ -231,12 +240,16 @@ class DepartmentService:
             email=data.email,
             website=data.website,
             office=data.office,
-            sort_order=data.sort_order,
+            sort_order=new_sort,
             display_order=data.display_order,
             is_active=data.is_active,
-            content_status=data.content_status,
             head_staff_id=data.head_staff_id,
         )
+
+        all_depts.insert(new_sort, dept)
+        for index, d in enumerate(all_depts):
+            d.sort_order = index
+
         db.add(dept)
         await db.flush()
 
@@ -260,7 +273,6 @@ class DepartmentService:
                 language_id=lang_map[code],
                 name=trans_data.name,
                 description=trans_data.description,
-                short_description=trans_data.short_description,
                 mission=trans_data.mission,
                 vision=trans_data.vision,
                 history=trans_data.history,
@@ -332,8 +344,6 @@ class DepartmentService:
                 d.sort_order = index
         if data.is_active is not None:
             dept.is_active = data.is_active
-        if data.content_status is not None:
-            dept.content_status = data.content_status
 
         # Update translations
         if data.translations is not None:
@@ -352,7 +362,6 @@ class DepartmentService:
                     if trans_data.name:
                         matched.name = trans_data.name
                         matched.description = trans_data.description
-                        matched.short_description = trans_data.short_description
                         matched.mission = trans_data.mission
                         matched.vision = trans_data.vision
                         matched.history = trans_data.history
@@ -399,7 +408,6 @@ class DepartmentService:
                             language_id=lang_map[code],
                             name=trans_data.name,
                             description=trans_data.description,
-                            short_description=trans_data.short_description,
                             mission=trans_data.mission,
                             vision=trans_data.vision,
                             history=trans_data.history,

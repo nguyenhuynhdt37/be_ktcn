@@ -37,6 +37,7 @@ from app.modules.search.router import router as search_router
 from app.modules.statistics.router import router as statistics_portal_router
 from app.modules.consultation.routers import admin_router as consultation_admin_router, portal_router as consultation_portal_router
 from app.modules.notification.routers import router as notification_admin_router
+from app.modules.dashboard.router import router as dashboard_router
 from app.modules.program import admin_router as program_admin_router, portal_router as program_portal_router
 from app.modules.gallery import admin_router as gallery_admin_router, portal_router as gallery_portal_router
 
@@ -189,6 +190,4 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/admin/notifications",
     tags=["admin-notifications"],
 )
-
-
-
+app.include_router(dashboard_router, prefix=settings.API_V1_STR)

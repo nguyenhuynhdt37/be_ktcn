@@ -66,9 +66,9 @@ class MenuItem(BaseModel):
         ),
         CheckConstraint(
             """
-            (target_type = 'EXTERNAL_LINK' AND external_url IS NOT NULL AND target_id IS NULL)
-            OR (target_type IS NOT NULL AND target_type != 'EXTERNAL_LINK' AND target_id IS NOT NULL AND external_url IS NULL)
-            OR (target_type IS NULL AND target_id IS NULL AND external_url IS NULL)
+            (target_type = 'EXTERNAL_LINK' AND target_id IS NULL)
+            OR (target_type IS NOT NULL AND target_type != 'EXTERNAL_LINK' AND target_id IS NOT NULL)
+            OR (target_type IS NULL AND target_id IS NULL)
             """,
             name="chk_menu_items_target_consistency",
         ),
@@ -87,7 +87,7 @@ class MenuItem(BaseModel):
         nullable=True,
     )
     target_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
-    external_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
     open_in_new_tab: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
@@ -126,6 +126,7 @@ class MenuItemTranslation(BaseModel):
         ForeignKey("languages.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    external_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     menu_item: Mapped["MenuItem"] = relationship(
         "MenuItem", back_populates="translations"

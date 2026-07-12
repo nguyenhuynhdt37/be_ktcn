@@ -42,8 +42,8 @@ def build_menu_item_resolved(data: Any) -> Any:
         return data
 
     translations_dict = {
-        "vi": {"title": "", "is_translated": False},
-        "en": {"title": "", "is_translated": False}
+        "vi": {"title": "", "external_url": None, "is_translated": False},
+        "en": {"title": "", "external_url": None, "is_translated": False}
     }
     is_translated = {
         "vi": False,
@@ -59,9 +59,15 @@ def build_menu_item_resolved(data: Any) -> Any:
             if lang_code:
                 translations_dict[lang_code] = {
                     "title": trans.title,
+                    "external_url": getattr(trans, "external_url", None),
                     "is_translated": True
                 }
                 is_translated[lang_code] = True
+
+    resolved_ext_url = safe_getattr(data, "external_url", None)
+    # If not set (e.g. from ORM attribute without _apply_translation), default to the 'vi' translation
+    if resolved_ext_url is None:
+        resolved_ext_url = translations_dict["vi"]["external_url"] or translations_dict["en"]["external_url"]
 
     db_dict = {
         "id": safe_getattr(data, "id", None),
@@ -70,7 +76,7 @@ def build_menu_item_resolved(data: Any) -> Any:
         "target_type": safe_getattr(data, "target_type", None),
         "target_id": safe_getattr(data, "target_id", None),
         "target_info": safe_getattr(data, "target_info", None),
-        "external_url": safe_getattr(data, "external_url", None),
+        "external_url": resolved_ext_url,
         "open_in_new_tab": safe_getattr(data, "open_in_new_tab", False),
         "depth": safe_getattr(data, "depth", 1),
         "sort_order": safe_getattr(data, "sort_order", 0),
@@ -78,7 +84,7 @@ def build_menu_item_resolved(data: Any) -> Any:
         "has_link": safe_getattr(
             data,
             "has_link",
-            bool(safe_getattr(data, "target_type", None) or safe_getattr(data, "external_url", None)),
+            bool(safe_getattr(data, "target_type", None) or resolved_ext_url),
         ),
         "is_translated": is_translated,
         "translations": translations_dict,
@@ -91,6 +97,7 @@ def build_menu_item_resolved(data: Any) -> Any:
 class TranslationItemResponse(BaseModel):
     """Schema cho từng bản dịch của MenuItem."""
     title: str
+    external_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -116,13 +123,12 @@ class MenuItemCreate(BaseModel):
     parent_id: Optional[uuid.UUID] = None
     target_type: Optional[MenuItemTargetType] = None
     target_id: Optional[uuid.UUID] = None
-    external_url: Optional[str] = None
     open_in_new_tab: bool = False
     sort_order: int = 0
     is_visible: bool = True
     translations: dict[str, TranslationItemResponse] = Field(..., description="Bản dịch của menu item")
 
-    @field_validator("parent_id", "target_type", "target_id", "external_url", mode="before")
+    @field_validator("parent_id", "target_type", "target_id", mode="before")
     @classmethod
     def empty_str_to_none(cls, v: Any) -> Any:
         if v == "":
@@ -135,13 +141,12 @@ class MenuItemUpdate(BaseModel):
     parent_id: Optional[uuid.UUID] = None
     target_type: Optional[MenuItemTargetType] = None
     target_id: Optional[uuid.UUID] = None
-    external_url: Optional[str] = None
     open_in_new_tab: Optional[bool] = None
     sort_order: Optional[int] = None
     is_visible: Optional[bool] = None
     translations: Optional[dict[str, TranslationItemResponse]] = None
 
-    @field_validator("parent_id", "target_type", "target_id", "external_url", mode="before")
+    @field_validator("parent_id", "target_type", "target_id", mode="before")
     @classmethod
     def empty_str_to_none(cls, v: Any) -> Any:
         if v == "":

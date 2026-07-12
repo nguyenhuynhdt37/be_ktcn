@@ -119,11 +119,25 @@ async def test_department_crud_and_i18n(client: AsyncClient, admin_headers: dict
         found = [d for d in depts_en if d["id"] == dept_id]
         assert len(found) == 1
         assert found[0]["name"] == "Information Technology"
-        assert found[0]["mission"] == "<p>Mission in English</p>"
+        assert "mission" not in found[0]
         assert found[0]["display_order"] == 2
         assert found[0]["logo_object_key"] is not None
         assert found[0]["banner_object_key"] is not None
         assert "translations" not in found[0]
+
+
+        # 3.2. Test Admin List Filter by unit_type
+        res_admin_dep = await client.get("/api/v1/admin/departments?unit_type=department", headers=admin_headers)
+        assert res_admin_dep.status_code == 200
+        admin_dep_items = res_admin_dep.json()["items"]
+        found_admin_dep = [d for d in admin_dep_items if d["id"] == dept_id]
+        assert len(found_admin_dep) == 1
+
+        res_admin_lab = await client.get("/api/v1/admin/departments?unit_type=lab", headers=admin_headers)
+        assert res_admin_lab.status_code == 200
+        admin_lab_items = res_admin_lab.json()["items"]
+        found_admin_lab = [d for d in admin_lab_items if d["id"] == dept_id]
+        assert len(found_admin_lab) == 0
 
         # 4. Kiểm tra Validation cho head_staff_id không tồn tại
         bad_payload = payload.copy()
@@ -159,6 +173,22 @@ async def test_department_crud_and_i18n(client: AsyncClient, admin_headers: dict
         assert "suggestions" in seo_data
         assert "generated_seo_title" in seo_data
         assert "generated_meta_description" in seo_data
+
+        # 4.8. Test Department Overview Portal Endpoint
+        updated_slug = up_data["translations"]["vi"]["slug"]
+        res_overview = await client.get(f"/api/v1/portal/departments/{updated_slug}/overview?lang=vi")
+        assert res_overview.status_code == 200
+        overview_data = res_overview.json()
+        assert "department" in overview_data
+
+        assert "staffs" in overview_data
+        assert "stats" in overview_data
+        assert "programs" in overview_data
+        assert "latest_articles" in overview_data
+        assert "galleries" in overview_data
+        assert overview_data["department"]["name"] == "Khoa Công nghệ thông tin"
+        assert overview_data["department"]["mission"] == "<p>Sứ mệnh mới</p>"
+
 
         # 5. Xóa bộ môn
         res_del = await client.delete(f"/api/v1/admin/departments/{dept_id}", headers=admin_headers)

@@ -1333,12 +1333,26 @@ class ArticleService:
             lang_res = await db.execute(select(Language.id).where(Language.code == "vi"))
             lang_id = lang_res.scalar()
 
+        # Kiểm tra xem tham số slug truyền vào có phải là UUID hợp lệ không
+        import uuid
+        is_uuid = False
+        try:
+            uuid.UUID(slug)
+            is_uuid = True
+        except ValueError:
+            pass
+
+        if is_uuid:
+            condition = (Article.id == slug)
+        else:
+            condition = (ArticleTranslation.slug == slug)
+
         # Câu query lấy chi tiết bài viết (Eager loading tối ưu)
         stmt = (
             select(Article)
             .join(ArticleTranslation, (ArticleTranslation.article_id == Article.id) & (ArticleTranslation.language_id == lang_id), isouter=True)
             .where(
-                ArticleTranslation.slug == slug,
+                condition,
                 Article.status == ArticleStatus.PUBLISHED,
                 Article.deleted_at == None,
                 Article.publish_at <= now

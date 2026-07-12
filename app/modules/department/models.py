@@ -30,7 +30,6 @@ class Department(BaseModel):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     display_order: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    content_status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False)
 
     # Trưởng Khoa / Head of Department
     head_staff_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -93,7 +92,6 @@ class DepartmentTranslation(BaseModel):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    short_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     mission: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     vision: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     history: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

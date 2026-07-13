@@ -37,16 +37,24 @@ users_router = APIRouter(prefix="/users", tags=["Users"])
 auth_service = AuthService()
 
 
-def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Optional[Request] = None) -> None:
     """
     Helper to set the secure, HttpOnly access and refresh token cookies.
     """
+    secure = settings.ENV == "production"
+    samesite = "lax"
+
+    # Nếu request gọi qua HTTPS (như trên server API thực tế), ta bắt buộc phải dùng SameSite=None, Secure=True để hỗ trợ client ở các origin khác (như dev ở localhost)
+    if request and request.url.scheme == "https":
+        secure = True
+        samesite = "none"
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=settings.ENV == "production",
-        samesite="lax",
+        secure=secure,
+        samesite=samesite,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -54,8 +62,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.ENV == "production",
-        samesite="lax",
+        secure=secure,
+        samesite=samesite,
         max_age=8 * 24 * 60 * 60,  # 8 days in seconds
         path="/",  # Accessible system-wide
     )
@@ -105,7 +113,7 @@ async def login(
     await log_action(db, login_actor, "AUTH_LOGIN", "session", None, {"ip": ip_address}, request)
     await db.commit()
 
-    set_auth_cookies(response, token_data.access_token, raw_refresh_token)
+    set_auth_cookies(response, token_data.access_token, raw_refresh_token, request)
     return token_data
 
 
@@ -133,7 +141,7 @@ async def refresh_token(
         db, refresh_token, ip_address, user_agent
     )
 
-    set_auth_cookies(response, token_data.access_token, new_raw_refresh_token)
+    set_auth_cookies(response, token_data.access_token, new_raw_refresh_token, request)
     return token_data
 
 

@@ -415,8 +415,8 @@ class ArticleService:
                 failed_ids.append(art_id)
                 continue
             
-            # Phân quyền: Chỉ chủ sở hữu bài viết mới được thực hiện bulk action lên bài viết đó
-            if article.author_id != current_user.id:
+            # Phân quyền: Chỉ chủ sở hữu bài viết hoặc admin mới được thực hiện bulk action lên bài viết đó
+            if article.author_id != current_user.id and not getattr(current_user, "is_admin", False):
                 failed_count += 1
                 failed_ids.append(art_id)
                 continue
@@ -953,8 +953,8 @@ class ArticleService:
         if not article:
             raise NotFoundException(message="Không tìm thấy bài viết hoặc bài viết đã bị xóa.")
 
-        # Phân quyền bản nháp (DRAFT): chỉ tác giả của bản nháp mới được quyền đọc
-        if article.is_draft and article.author_id != current_user.id:
+        # Phân quyền bản nháp (DRAFT): chỉ tác giả của bản nháp hoặc admin mới được quyền đọc
+        if article.is_draft and article.author_id != current_user.id and not getattr(current_user, "is_admin", False):
             raise ForbiddenException(message="Quyền truy cập bị từ chối. Bạn không được quyền xem bản nháp của tác giả khác.")
 
         # Apply translation phẳng
@@ -1008,7 +1008,7 @@ class ArticleService:
         was_published = (article.status == ArticleStatus.PUBLISHED and not article.is_draft)
 
         # 2. Phân quyền chỉnh sửa (Edit Security)
-        if article.author_id != current_user.id:
+        if article.author_id != current_user.id and not getattr(current_user, "is_admin", False):
             raise ForbiddenException(message="Bạn không có quyền chỉnh sửa bài viết của tác giả khác.")
 
         # Tự động trích xuất category_id từ object category nếu category_id là None
@@ -1553,6 +1553,10 @@ class ArticleService:
         Xóa mềm bài viết bằng cách gán deleted_at.
         """
         article = await self.get_article_detail(db, article_id=article_id, current_user=current_user)
+        
+        # Check quyền xóa: Phải là chủ sở hữu bài viết hoặc admin
+        if article.author_id != current_user.id and not getattr(current_user, "is_admin", False):
+            raise ForbiddenException(message="Bạn không có quyền xóa bài viết của tác giả khác.")
         
         article.deleted_at = datetime.now(timezone.utc)
         db.add(article)

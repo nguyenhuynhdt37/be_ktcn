@@ -38,7 +38,7 @@ services:
     restart: always
     ports:
       - "9000:9000"   # API
-      - "9001:9001"   # Web Console
+      - "9091:9001"   # Web Console (Đổi sang 9091 tránh portainer 9001 trên server)
     environment:
       MINIO_ROOT_USER: minio_admin
       MINIO_ROOT_PASSWORD: minio_password
@@ -49,6 +49,7 @@ services:
   omniroute:
     image: litellm/litellm:main-latest
     container_name: omniroute_gateway
+    restart: always
     ports:
       - "8090:4000"
     volumes:
@@ -64,13 +65,11 @@ services:
     restart: always
     ports:
       - "8000:8000"
-    env_file:
-      - .env
     environment:
-      - POSTGRES_SERVER=db
-      - REDIS_HOST=redis
-      - MINIO_INTERNAL_ENDPOINT=minio:9000
-      - AI_BASE_URL=http://omniroute:4000
+      - ENV_FILE=.env
+    volumes:
+      - .env:/app/.env
+      - ./omniroute:/app/omniroute
     depends_on:
       db:
         condition: service_healthy
@@ -81,4 +80,3 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
-

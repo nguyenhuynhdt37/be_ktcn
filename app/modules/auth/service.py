@@ -202,9 +202,12 @@ class AuthService:
         await db.commit()
 
     async def get_users_page(
-        self, db: AsyncSession, page: int, page_size: int, search: Optional[str] = None, is_active: Optional[bool] = None
+        self, db: AsyncSession, page: int, page_size: int, search: Optional[str] = None, is_active: Optional[bool] = None, is_deleted: bool = False
     ):
-        query = select(User).where(User.deleted_at == None).options(selectinload(User.avatar))
+        if is_deleted:
+            query = select(User).where(User.deleted_at != None).options(selectinload(User.avatar))
+        else:
+            query = select(User).where(User.deleted_at == None).options(selectinload(User.avatar))
 
         if search:
             query = query.where(User.username.ilike(f"%{search}%") | User.email.ilike(f"%{search}%") | User.full_name.ilike(f"%{search}%"))
@@ -254,6 +257,11 @@ class AuthService:
 
         update_data = payload.model_dump(exclude_unset=True)
 
+        # Bảo mật: Nếu không phải admin thì không được phép thay đổi quyền hạn hoặc trạng thái
+        if not current_user.is_admin:
+            update_data.pop("is_admin", None)
+            update_data.pop("is_active", None)
+
         # Xử lý cấp lại mật khẩu
         password = update_data.pop("password", None)
         if password is not None:
@@ -279,6 +287,22 @@ class AuthService:
         user.deleted_at = datetime.now(timezone.utc)
         user.is_active = False
         await db.commit()
+
+    async def restore_user(self, db: AsyncSession, user_id: uuid.UUID, current_user) -> User:
+        stmt = select(User).where(User.id == user_id).options(selectinload(User.avatar))
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise NotFoundException("User không tồn tại")
+        
+        if user.deleted_at is None:
+            raise BadRequestException("Tài khoản không ở trạng thái bị xóa mềm")
+            
+        user.deleted_at = None
+        user.is_active = True
+        await db.commit()
+        await db.refresh(user, ["avatar"])
+        return user
 
     async def check_email_exists(self, db: AsyncSession, email: str) -> bool:
         stmt = select(func.count(User.id)).where(User.email == email, User.deleted_at == None)

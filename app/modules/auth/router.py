@@ -236,32 +236,40 @@ async def list_users(
     page_size: int = 10,
     search: Optional[str] = None,
     is_active: Optional[bool] = None,
+    is_deleted: bool = False,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserListResponse:
     """
     Get a paginated, filtered list of users.
     """
+    if is_deleted and not current_user.is_admin:
+        raise ForbiddenException(
+            message="Chỉ Admin mới có quyền xem danh sách tài khoản đã bị xóa",
+            error_code="FORBIDDEN_ACCESS"
+        )
+
     items, total, total_pages = await auth_service.get_users_page(
         db,
         page=page,
         page_size=page_size,
         search=search,
         is_active=is_active,
+        is_deleted=is_deleted,
     )
-    
+    from app.core.config import settings
+    protocol = "https" if settings.MINIO_SECURE else "http"
     list_items = []
     for item in items:
-        avatar_url = item.avatar_url
-        prefix = "/api/v1/portal/media/file/"
-        if item.avatar:
-            avatar_url = f"{prefix}{item.avatar.object_key}"
-        elif avatar_url and not avatar_url.startswith(prefix):
-            if "files/" in avatar_url:
-                object_key = "files/" + avatar_url.split("files/")[-1]
-                avatar_url = f"{prefix}{object_key}"
-            else:
-                avatar_url = f"{prefix}{avatar_url}"
+        avatar_url = item.avatar.object_key if item.avatar else item.avatar_url
+        if avatar_url and avatar_url != "http://example.com/avatar.jpg":
+            prefix = "/api/v1/portal/media/file/"
+            if avatar_url.startswith(prefix):
+                avatar_url = avatar_url.replace(prefix, "")
+            if not (avatar_url.startswith("http://") or avatar_url.startswith("https://")):
+                avatar_url = f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{avatar_url}"
+        else:
+            avatar_url = None
             
         list_items.append(
             UserListItemResponse(
@@ -350,11 +358,13 @@ async def update_user(
     """
     Cập nhật thông tin chi tiết hoặc vai trò của thành viên.
     """
-    if not current_user.is_admin:
+
+    if not current_user.is_admin and current_user.id != user_id:
         raise ForbiddenException(
             message="Chỉ Admin mới có quyền cập nhật thông tin hoặc cấp lại mật khẩu cho thành viên khác",
             error_code="FORBIDDEN_ACCESS"
         )
+
     changes = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     user = await auth_service.update_user(db, user_id, payload, current_user)
     await log_action(db, current_user, "USER_UPDATED", "user", user_id, changes, request)
@@ -381,6 +391,27 @@ async def delete_user(
     await log_action(db, current_user, "USER_DELETED", "user", user_id, None, request)
     await db.commit()
     return {"success": True}
+
+
+@users_router.post("/{user_id}/restore", response_model=UserDetailResponse)
+async def restore_user(
+    request: Request,
+    user_id: uuid.UUID,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserDetailResponse:
+    """
+    Khôi phục tài khoản thành viên bị xóa mềm (chỉ dành cho Admin).
+    """
+    if not current_user.is_admin:
+        raise ForbiddenException(
+            message="Chỉ Admin mới có quyền khôi phục tài khoản thành viên",
+            error_code="FORBIDDEN_ACCESS"
+        )
+    user = await auth_service.restore_user(db, user_id, current_user)
+    await log_action(db, current_user, "USER_RESTORED", "user", user_id, None, request)
+    await db.commit()
+    return UserDetailResponse.model_validate(user)
 
 
 

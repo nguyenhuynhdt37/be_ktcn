@@ -7,6 +7,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.core.config import settings
+
+
+def resolve_avatar_url(avatar_url: Optional[str]) -> Optional[str]:
+    if not avatar_url or avatar_url == "http://example.com/avatar.jpg":
+        return None
+    if avatar_url.startswith("http://") or avatar_url.startswith("https://") or avatar_url.startswith("data:"):
+        return avatar_url
+    
+    protocol = "https" if settings.MINIO_SECURE else "http"
+    prefix = "/api/v1/portal/media/file/"
+    if avatar_url.startswith(prefix):
+        avatar_url = avatar_url.replace(prefix, "")
+    return f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{avatar_url}"
+
 from app.core.database import get_db
 from app.core.exceptions import UnauthorizedException
 from app.core.security import decode_access_token
@@ -49,9 +64,7 @@ async def get_current_user_optional(
         return None
 
     roles = ["super_admin"] if user.username == "superadmin" else ["admin"]
-    avatar_url = user.avatar.object_key if user.avatar else user.avatar_url
-    if avatar_url == "http://example.com/avatar.jpg":
-        avatar_url = None
+    avatar_url = resolve_avatar_url(user.avatar.object_key if user.avatar else user.avatar_url)
 
     return UserResponse(
         id=user.id,
@@ -126,9 +139,7 @@ async def get_current_user(
         )
 
     roles = ["super_admin"] if user.username == "superadmin" else (["admin"] if user.is_admin else ["member"])
-    avatar_url = user.avatar.object_key if user.avatar else user.avatar_url
-    if avatar_url == "http://example.com/avatar.jpg":
-        avatar_url = None
+    avatar_url = resolve_avatar_url(user.avatar.object_key if user.avatar else user.avatar_url)
 
     return UserResponse(
         id=user.id,

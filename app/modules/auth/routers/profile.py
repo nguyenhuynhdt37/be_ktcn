@@ -28,17 +28,19 @@ from app.modules.audit.schemas import AuditLogResponse
 router = APIRouter()
 auth_service = AuthService()
 
-
 def _resolve_avatar_url(user) -> str | None:
     """Resolve avatar URL từ avatar relation hoặc avatar_url cột."""
-    if user.avatar:
-        return user.avatar.object_key
-    avatar_url = user.avatar_url
-    if avatar_url == "http://example.com/avatar.jpg":
+    avatar_url = user.avatar.object_key if user.avatar else user.avatar_url
+    if not avatar_url or avatar_url == "http://example.com/avatar.jpg":
         return None
-    return avatar_url
-
-
+    if avatar_url.startswith("http://") or avatar_url.startswith("https://") or avatar_url.startswith("data:"):
+        return avatar_url
+    from app.core.config import settings
+    protocol = "https" if settings.MINIO_SECURE else "http"
+    prefix = "/api/v1/portal/media/file/"
+    if avatar_url.startswith(prefix):
+        avatar_url = avatar_url.replace(prefix, "")
+    return f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{avatar_url}"
 def _build_profile_response(user, roles: list[str]) -> MyProfileResponse:
     """Chuyển User entity thành MyProfileResponse."""
     return MyProfileResponse(

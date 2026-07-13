@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import redis.asyncio as aioredis
 
 from app.core.database import get_db
+from app.core.exceptions import ForbiddenException
 from app.shared.redis import get_redis
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.schemas import UserResponse
@@ -23,4 +24,9 @@ async def get_dashboard(
     Bao gồm: visitors, articles, users, consultations, content, logins,
     top articles, và hoạt động gần đây.
     """
+    if not current_user.is_admin:
+        raise ForbiddenException(
+            message="Chỉ Admin mới có quyền xem thông tin tổng quan hệ thống",
+            error_code="FORBIDDEN_ACCESS"
+        )
     return await dashboard_service.get_dashboard(db, redis_client)

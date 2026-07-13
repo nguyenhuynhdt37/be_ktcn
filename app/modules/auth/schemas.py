@@ -227,29 +227,30 @@ class UserDetailResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def resolve_avatar_url(cls, data: Any) -> Any:
+        from app.core.config import settings
+        protocol = "https" if settings.MINIO_SECURE else "http"
         prefix = "/api/v1/portal/media/file/"
+        minio_prefix = f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/"
+
+        def _clean_url(v: Optional[str]) -> Optional[str]:
+            if not v or v == "http://example.com/avatar.jpg":
+                return None
+            if v.startswith("http://") or v.startswith("https://") or v.startswith("data:"):
+                return v
+            if v.startswith(prefix):
+                v = v.replace(prefix, "")
+            return f"{minio_prefix}{v}"
+
         if hasattr(data, "avatar") and data.avatar:
-            data.avatar_url = f"{prefix}{data.avatar.object_key}"
+            data.avatar_url = _clean_url(data.avatar.object_key)
         elif hasattr(data, "avatar_url") and data.avatar_url:
-            v = data.avatar_url
-            if not v.startswith(prefix):
-                if "files/" in v:
-                    object_key = "files/" + v.split("files/")[-1]
-                    data.avatar_url = f"{prefix}{object_key}"
-                else:
-                    data.avatar_url = f"{prefix}{v}"
+            data.avatar_url = _clean_url(data.avatar_url)
         elif isinstance(data, dict):
             avatar = data.get("avatar")
             if avatar and isinstance(avatar, dict) and avatar.get("object_key"):
-                data["avatar_url"] = f"{prefix}{avatar['object_key']}"
+                data["avatar_url"] = _clean_url(avatar["object_key"])
             elif data.get("avatar_url"):
-                v = data["avatar_url"]
-                if not v.startswith(prefix):
-                    if "files/" in v:
-                        object_key = "files/" + v.split("files/")[-1]
-                        data["avatar_url"] = f"{prefix}{object_key}"
-                    else:
-                        data["avatar_url"] = f"{prefix}{v}"
+                data["avatar_url"] = _clean_url(data["avatar_url"])
         return data
 
 

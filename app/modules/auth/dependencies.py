@@ -125,7 +125,7 @@ async def get_current_user(
             error_code="INACTIVE_USER"
         )
 
-    roles = ["super_admin"] if user.username == "superadmin" else ["admin"]
+    roles = ["super_admin"] if user.username == "superadmin" else (["admin"] if user.is_admin else ["member"])
     avatar_url = user.avatar.object_key if user.avatar else user.avatar_url
     if avatar_url == "http://example.com/avatar.jpg":
         avatar_url = None
@@ -138,4 +138,5 @@ async def get_current_user(
         avatar_url=avatar_url,
         roles=roles,
         is_active=user.is_active,
+        is_admin=user.is_admin,
     )

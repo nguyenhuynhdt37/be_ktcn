@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.exceptions import TooManyRequestsException, UnauthorizedException
+from app.core.exceptions import TooManyRequestsException, UnauthorizedException, ForbiddenException
 from app.core.security import decode_access_token
 from app.modules.auth.dependencies import get_current_user
 from app.modules.auth.models import User
@@ -296,6 +296,11 @@ async def create_user(
     """
     Tạo một tài khoản thành viên mới trong hệ thống.
     """
+    if not current_user.is_admin:
+        raise ForbiddenException(
+            message="Chỉ Admin mới có quyền tạo tài khoản thành viên mới",
+            error_code="FORBIDDEN_ACCESS"
+        )
     user = await auth_service.create_user(db, payload, current_user)
     await log_action(
         db, current_user, "USER_CREATED", "user", user.id,
@@ -344,6 +349,11 @@ async def update_user(
     """
     Cập nhật thông tin chi tiết hoặc vai trò của thành viên.
     """
+    if not current_user.is_admin:
+        raise ForbiddenException(
+            message="Chỉ Admin mới có quyền cập nhật thông tin hoặc cấp lại mật khẩu cho thành viên khác",
+            error_code="FORBIDDEN_ACCESS"
+        )
     changes = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     user = await auth_service.update_user(db, user_id, payload, current_user)
     await log_action(db, current_user, "USER_UPDATED", "user", user_id, changes, request)
@@ -361,6 +371,11 @@ async def delete_user(
     """
     Xóa tài khoản thành viên khỏi hệ thống (soft delete).
     """
+    if not current_user.is_admin:
+        raise ForbiddenException(
+            message="Chỉ Admin mới có quyền xóa tài khoản thành viên",
+            error_code="FORBIDDEN_ACCESS"
+        )
     await auth_service.delete_user(db, user_id, current_user)
     await log_action(db, current_user, "USER_DELETED", "user", user_id, None, request)
     await db.commit()

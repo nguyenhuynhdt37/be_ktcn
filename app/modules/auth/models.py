@@ -21,6 +21,7 @@ class User(BaseModel):
     full_name: Mapped[str] = mapped_column(String(100), nullable=False)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     email_verified_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)

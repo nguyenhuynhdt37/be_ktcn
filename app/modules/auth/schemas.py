@@ -39,6 +39,7 @@ class UserResponse(BaseModel):
     avatar_url: str | None = None
     roles: list[str] = []
     is_active: bool = True
+    is_admin: bool = False
 
 
 
@@ -80,6 +81,7 @@ class UserListItemResponse(BaseModel):
     full_name: str
     avatar_url: str | None = None
     is_active: bool
+    is_admin: bool
     last_login: datetime | None = None
     created_at: datetime
 
@@ -183,6 +185,7 @@ class UserCreate(BaseModel):
     title: str | None = Field(default=None, max_length=100, description="Chức danh")
     avatar_id: uuid.UUID | None = Field(default=None, description="ID ảnh đại diện")
     is_active: bool = Field(default=True, description="Trạng thái hoạt động")
+    is_admin: bool = Field(default=False, description="Quyền quản trị viên")
 
 
 class UserUpdate(BaseModel):
@@ -195,6 +198,8 @@ class UserUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=100, description="Chức danh")
     avatar_id: uuid.UUID | None = Field(default=None, description="ID ảnh đại diện")
     is_active: bool | None = Field(default=None, description="Trạng thái hoạt động")
+    is_admin: bool | None = Field(default=None, description="Quyền quản trị viên")
+    password: str | None = Field(default=None, min_length=6, max_length=100, description="Mật khẩu mới (nếu cấp lại)")
 
 
 class UserDetailResponse(BaseModel):
@@ -211,6 +216,7 @@ class UserDetailResponse(BaseModel):
     avatar_id: uuid.UUID | None
     avatar: MediaItemResponse | None
     is_active: bool
+    is_admin: bool
     created_at: datetime
     updated_at: datetime
 
@@ -254,6 +260,7 @@ class MyProfileResponse(BaseModel):
     avatar_url: str | None = None
     roles: list[str] = []
     is_active: bool
+    is_admin: bool
     last_login: datetime | None = None
     created_at: datetime
     updated_at: datetime

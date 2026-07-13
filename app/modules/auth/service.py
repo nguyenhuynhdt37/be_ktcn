@@ -238,6 +238,7 @@ class AuthService:
             title=payload.title,
             avatar_id=payload.avatar_id,
             is_active=payload.is_active,
+            is_admin=payload.is_admin,
         )
         db.add(user)
         await db.commit()
@@ -252,6 +253,11 @@ class AuthService:
             raise NotFoundException("User không tồn tại")
 
         update_data = payload.model_dump(exclude_unset=True)
+
+        # Xử lý cấp lại mật khẩu
+        password = update_data.pop("password", None)
+        if password is not None:
+            user.password_hash = hash_password(password)
 
         for key, value in update_data.items():
             setattr(user, key, value)

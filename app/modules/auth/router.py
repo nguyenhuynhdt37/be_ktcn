@@ -272,6 +272,7 @@ async def list_users(
                 full_name=item.full_name,
                 avatar_url=avatar_url,
                 is_active=item.is_active,
+                is_admin=item.is_admin,
                 last_login=item.last_login,
                 created_at=item.created_at,
             )

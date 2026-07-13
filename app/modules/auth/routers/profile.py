@@ -52,6 +52,7 @@ def _build_profile_response(user, roles: list[str]) -> MyProfileResponse:
         avatar_url=_resolve_avatar_url(user),
         roles=roles,
         is_active=user.is_active,
+        is_admin=user.is_admin,
         last_login=user.last_login,
         created_at=user.created_at,
         updated_at=user.updated_at,

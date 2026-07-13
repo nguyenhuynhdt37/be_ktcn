@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, Any
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.modules.media.schemas import MediaItemResponse
 
 
@@ -215,12 +216,41 @@ class UserDetailResponse(BaseModel):
     title: str | None
     avatar_id: uuid.UUID | None
     avatar: MediaItemResponse | None
+    avatar_url: Optional[str] = None
     is_active: bool
     is_admin: bool
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_avatar_url(cls, data: Any) -> Any:
+        prefix = "/api/v1/portal/media/file/"
+        if hasattr(data, "avatar") and data.avatar:
+            data.avatar_url = f"{prefix}{data.avatar.object_key}"
+        elif hasattr(data, "avatar_url") and data.avatar_url:
+            v = data.avatar_url
+            if not v.startswith(prefix):
+                if "files/" in v:
+                    object_key = "files/" + v.split("files/")[-1]
+                    data.avatar_url = f"{prefix}{object_key}"
+                else:
+                    data.avatar_url = f"{prefix}{v}"
+        elif isinstance(data, dict):
+            avatar = data.get("avatar")
+            if avatar and isinstance(avatar, dict) and avatar.get("object_key"):
+                data["avatar_url"] = f"{prefix}{avatar['object_key']}"
+            elif data.get("avatar_url"):
+                v = data["avatar_url"]
+                if not v.startswith(prefix):
+                    if "files/" in v:
+                        object_key = "files/" + v.split("files/")[-1]
+                        data["avatar_url"] = f"{prefix}{object_key}"
+                    else:
+                        data["avatar_url"] = f"{prefix}{v}"
+        return data
 
 
 # ─── Profile Management Schemas ──────────────────────────────────────────────

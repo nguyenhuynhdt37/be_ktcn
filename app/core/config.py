@@ -95,10 +95,17 @@ class Settings(BaseSettings):
 
     # MinIO / S3 Storage Config
     MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_INTERNAL_ENDPOINT: str = ""
     MINIO_ACCESS_KEY: str = "minio_admin"
     MINIO_SECRET_KEY: str = "minio_password"
     MINIO_SECURE: bool = False
     MINIO_BUCKET: str = "university-media"
+
+    @model_validator(mode="after")
+    def assemble_minio_internal_endpoint(self) -> "Settings":
+        if not self.MINIO_INTERNAL_ENDPOINT:
+            self.MINIO_INTERNAL_ENDPOINT = self.MINIO_ENDPOINT
+        return self
 
     # AI Integration
     GEMINI_API_KEY: str = ""

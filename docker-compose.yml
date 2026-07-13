@@ -69,7 +69,7 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
-      - MINIO_ENDPOINT=minio:9000
+      - MINIO_INTERNAL_ENDPOINT=minio:9000
       - AI_BASE_URL=http://omniroute:4000
     depends_on:
       db:

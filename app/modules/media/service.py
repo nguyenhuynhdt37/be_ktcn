@@ -94,7 +94,7 @@ class MediaService:
         # Initialize boto3 S3 Client configured for MinIO
         self.s3_client = boto3.client(
             "s3",
-            endpoint_url=f"http{'s' if settings.MINIO_SECURE else ''}://{settings.MINIO_ENDPOINT}",
+            endpoint_url=f"http{'s' if settings.MINIO_SECURE else ''}://{settings.MINIO_INTERNAL_ENDPOINT}",
             aws_access_key_id=settings.MINIO_ACCESS_KEY,
             aws_secret_access_key=settings.MINIO_SECRET_KEY,
             config=Config(signature_version="s3v4"),

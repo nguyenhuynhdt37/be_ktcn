@@ -13,7 +13,7 @@ async def test_push_notification_workflow(client, db_session: AsyncSession):
     settings.VAPID_PUBLIC_KEY = "BN5Yt6MEIUewAVbP-ZGflEGumFcS1jV2yjny"
     settings.VAPID_PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgAa7eQUZtiRWVy5NR\nJOvPHCfmO/buex7XENNQbcUecXuhRANCAATeWLejBCFHsAFWz/mRn5RBrphXEtY1\ndso58v06vDbDkgmP0xCHhu0IJC1IDH0VPDfgJF6+qxnHZ3ManLI5AxFn\n-----END PRIVATE KEY-----"
     
-    endpoint = f"https://fcm.googleapis.com/fcm/send/test-device-{uuid.uuid4()}"
+    endpoint = f"https://fcm.googleapis.com/fcm/send/device-{uuid.uuid4()}"
     subscribe_payload = {
         "endpoint": endpoint,
         "keys": {

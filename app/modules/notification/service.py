@@ -422,8 +422,20 @@ class NotificationService:
             logger.warning("VAPID keys not configured, skipping push notification")
             return
             
-        private_key = settings.VAPID_PRIVATE_KEY.replace("\\n", "\n")
+        # Giải mã PEM VAPID Private Key thành dạng Raw Base64 URL-safe 32 bytes cho pywebpush
+        from cryptography.hazmat.primitives import serialization
+        import base64
         
+        try:
+            pem_bytes = settings.VAPID_PRIVATE_KEY.encode('utf-8')
+            private_key_obj = serialization.load_pem_private_key(pem_bytes, password=None)
+            private_value = private_key_obj.private_numbers().private_value
+            raw_private_key_bytes = private_value.to_bytes(32, byteorder='big')
+            private_key = base64.urlsafe_b64encode(raw_private_key_bytes).decode('utf-8').rstrip('=')
+        except Exception as ex:
+            logger.error(f"Failed to parse VAPID private key from PEM: {ex}")
+            return
+            
         payload = {
             "title": title,
             "body": body,
@@ -442,14 +454,22 @@ class NotificationService:
             logger.info(f"Sending Web Push Notification to {len(subscriptions)} devices")
             
             for sub in subscriptions:
+                # Bỏ qua các thiết bị test giả lập để không spam log lỗi
+                if "test-device" in sub.endpoint:
+                    continue
+                    
                 try:
                     def perform_push():
+                        # Đảm bảo keys là Base64 URL-safe
+                        p256dh_safe = sub.p256dh.replace('+', '-').replace('/', '_').rstrip('=')
+                        auth_safe = sub.auth.replace('+', '-').replace('/', '_').rstrip('=')
+                        
                         webpush(
                             subscription_info={
                                 "endpoint": sub.endpoint,
                                 "keys": {
-                                    "p256dh": sub.p256dh,
-                                    "auth": sub.auth
+                                    "p256dh": p256dh_safe,
+                                    "auth": auth_safe
                                 }
                             },
                             data=json.dumps(payload),

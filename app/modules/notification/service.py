@@ -440,7 +440,7 @@ class NotificationService:
             "title": title,
             "body": body,
             "url": url,
-            "icon": icon or "/icon-192x192.png"
+            "icon": icon or "/images/logo-192.png"
         }
         
         async with SessionLocal() as db:

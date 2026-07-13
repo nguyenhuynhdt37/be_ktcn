@@ -33,7 +33,27 @@ echo -e "${GREEN}✓ Đã nạp database thành công!${CLEAR}"
 
 # 4. Restore MinIO
 echo -e "${YELLOW}[2/2] Đang nạp dữ liệu tệp tin vào MinIO...${CLEAR}"
-if [ -d "$BACKUP_DIR/minio_backup/university-media" ]; then
+if [ -f "$BACKUP_DIR/minio_backup.tar.gz" ]; then
+    echo -e "${YELLOW}Đang giải nén dữ liệu MinIO...${CLEAR}"
+    rm -rf "$BACKUP_DIR/minio_temp"
+    mkdir -p "$BACKUP_DIR/minio_temp"
+    tar -xzf "$BACKUP_DIR/minio_backup.tar.gz" -C "$BACKUP_DIR/minio_temp"
+
+    docker run --rm \
+      --entrypoint sh \
+      --network be_default \
+      -v "$(pwd)/$BACKUP_DIR/minio_temp:/backup" \
+      minio/mc -c "
+        mc alias set myminio http://minio:9000 minio_admin minio_password && \
+        mc mb --ignore-existing myminio/university-media && \
+        mc mirror --overwrite /backup/university-media myminio/university-media
+      "
+    
+    # Dọn dẹp thư mục tạm
+    rm -rf "$BACKUP_DIR/minio_temp"
+    echo -e "${GREEN}✓ Đã nạp dữ liệu MinIO thành công!${CLEAR}"
+elif [ -d "$BACKUP_DIR/minio_backup/university-media" ]; then
+    echo -e "${YELLOW}Phát hiện thư mục backup cũ, đang tiến hành nạp...${CLEAR}"
     docker run --rm \
       --entrypoint sh \
       --network be_default \
@@ -45,7 +65,7 @@ if [ -d "$BACKUP_DIR/minio_backup/university-media" ]; then
       "
     echo -e "${GREEN}✓ Đã nạp dữ liệu MinIO thành công!${CLEAR}"
 else
-    echo -e "${YELLOW}Cảnh báo: Không tìm thấy thư mục backup MinIO: $BACKUP_DIR/minio_backup/university-media, bỏ qua bước này.${CLEAR}"
+    echo -e "${YELLOW}Cảnh báo: Không tìm thấy tệp nén $BACKUP_DIR/minio_backup.tar.gz hoặc thư mục cũ, bỏ qua bước này.${CLEAR}"
 fi
 
 echo -e "${GREEN}=== NẠP DỮ LIỆU HOÀN TẤT THÀNH CÔNG! ===${CLEAR}"

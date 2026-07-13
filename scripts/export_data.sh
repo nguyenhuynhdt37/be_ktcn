@@ -26,14 +26,25 @@ echo -e "${GREEN}✓ Đã xuất database thành công: $BACKUP_DIR/db_backup.sq
 
 # 3. Backup MinIO
 echo -e "${YELLOW}[2/2] Đang xuất dữ liệu tệp tin từ MinIO...${CLEAR}"
+# Dọn dẹp thư mục tạm trước nếu có
+rm -rf "$BACKUP_DIR/minio_temp"
+mkdir -p "$BACKUP_DIR/minio_temp"
+
 docker run --rm \
   --entrypoint sh \
   --network be_default \
-  -v "$(pwd)/$BACKUP_DIR/minio_backup:/backup" \
+  -v "$(pwd)/$BACKUP_DIR/minio_temp:/backup" \
   minio/mc -c "
     mc alias set myminio http://minio:9000 minio_admin minio_password && \
     mc mirror --overwrite myminio/university-media /backup/university-media
   "
 
-echo -e "${GREEN}✓ Đã xuất dữ liệu MinIO thành công vào thư mục: $BACKUP_DIR/minio_backup/${CLEAR}"
+# Nén thư mục tạm thành file minio_backup.tar.gz
+echo -e "${YELLOW}Đang nén dữ liệu MinIO thành $BACKUP_DIR/minio_backup.tar.gz...${CLEAR}"
+tar -czf "$BACKUP_DIR/minio_backup.tar.gz" -C "$BACKUP_DIR/minio_temp" university-media
+
+# Xóa thư mục tạm
+rm -rf "$BACKUP_DIR/minio_temp"
+
+echo -e "${GREEN}✓ Đã xuất tệp nén MinIO thành công: $BACKUP_DIR/minio_backup.tar.gz${CLEAR}"
 echo -e "${GREEN}=== XUẤT DỮ LIỆU HOÀN TẤT THÀNH CÔNG! ===${CLEAR}"

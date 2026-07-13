@@ -97,3 +97,7 @@ university_cms.sql
 university-media.tar.gz
 *.tar.gz
 
+# Local backups
+backups/
+
+

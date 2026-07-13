@@ -83,6 +83,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 11520
     REFRESH_TOKEN_EXPIRE_DAYS: int = 8
 
+    # Cookie Settings
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: str = "lax"
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = (

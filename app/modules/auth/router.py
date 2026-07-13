@@ -41,8 +41,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
     """
     Helper to set the secure, HttpOnly access and refresh token cookies.
     """
-    secure = settings.ENV == "production"
-    samesite = "lax"
+    secure = settings.COOKIE_SECURE
+    samesite = settings.COOKIE_SAMESITE
 
     # Nếu request gọi qua HTTPS hoặc được chuyển tiếp HTTPS qua Proxy, ta bắt buộc phải dùng SameSite=None, Secure=True để hỗ trợ client ở các origin khác (như dev ở localhost)
     is_https = False

@@ -1,0 +1,12 @@
+.DS_Store
+.agent
+.agents
+.git
+.pytest_cache
+.venv
+__pycache__
+*.pyc
+app.db
+logs
+scratch
+tests

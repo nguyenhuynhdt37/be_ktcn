@@ -354,5 +354,121 @@ class NotificationService:
         await db.commit()
         return result.rowcount or 0
 
+    async def subscribe_device(
+        self,
+        db: AsyncSession,
+        *,
+        subscription_data: Any,  # PushSubscriptionCreate
+        user_id: uuid.UUID | None
+    ) -> Any:
+        from app.modules.notification.models import PushSubscription
+        
+        stmt = select(PushSubscription).where(PushSubscription.endpoint == subscription_data.endpoint)
+        res = await db.execute(stmt)
+        subscription = res.scalar_one_or_none()
+        
+        if not subscription:
+            subscription = PushSubscription(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                endpoint=subscription_data.endpoint,
+                p256dh=subscription_data.keys.p256dh,
+                auth=subscription_data.keys.auth,
+                user_agent=subscription_data.user_agent,
+                is_active=True
+            )
+            db.add(subscription)
+        else:
+            subscription.user_id = user_id
+            subscription.p256dh = subscription_data.keys.p256dh
+            subscription.auth = subscription_data.keys.auth
+            subscription.user_agent = subscription_data.user_agent
+            subscription.is_active = True
+            db.add(subscription)
+            
+        await db.commit()
+        await db.refresh(subscription)
+        return subscription
+
+    async def unsubscribe_device(
+        self,
+        db: AsyncSession,
+        *,
+        endpoint: str
+    ) -> None:
+        from app.modules.notification.models import PushSubscription
+        from sqlalchemy import delete
+        
+        stmt = delete(PushSubscription).where(PushSubscription.endpoint == endpoint)
+        await db.execute(stmt)
+        await db.commit()
+
+    async def send_web_push_to_all(
+        self,
+        *,
+        title: str,
+        body: str,
+        url: str,
+        icon: str | None = None
+    ) -> None:
+        from app.core.config import settings
+        from app.core.database import SessionLocal
+        from app.modules.notification.models import PushSubscription
+        from pywebpush import webpush, WebPushException
+        import json
+        import asyncio
+        
+        if not settings.VAPID_PRIVATE_KEY or not settings.VAPID_PUBLIC_KEY:
+            logger.warning("VAPID keys not configured, skipping push notification")
+            return
+            
+        private_key = settings.VAPID_PRIVATE_KEY.replace("\\n", "\n")
+        
+        payload = {
+            "title": title,
+            "body": body,
+            "url": url,
+            "icon": icon or "/icon-192x192.png"
+        }
+        
+        async with SessionLocal() as db:
+            stmt = select(PushSubscription).where(PushSubscription.is_active == True)
+            res = await db.execute(stmt)
+            subscriptions = res.scalars().all()
+            
+            if not subscriptions:
+                return
+                
+            logger.info(f"Sending Web Push Notification to {len(subscriptions)} devices")
+            
+            for sub in subscriptions:
+                try:
+                    def perform_push():
+                        webpush(
+                            subscription_info={
+                                "endpoint": sub.endpoint,
+                                "keys": {
+                                    "p256dh": sub.p256dh,
+                                    "auth": sub.auth
+                                }
+                            },
+                            data=json.dumps(payload),
+                            vapid_private_key=private_key,
+                            vapid_claims={
+                                "sub": f"mailto:{settings.VAPID_CLAIM_EMAIL}"
+                            }
+                        )
+                    
+                    await asyncio.to_thread(perform_push)
+                except WebPushException as ex:
+                    logger.warning(f"WebPush failed for endpoint {sub.endpoint}: {ex}")
+                    if ex.response is not None and ex.response.status_code in (404, 410):
+                        sub.is_active = False
+                        db.add(sub)
+                except Exception as ex:
+                    logger.error(f"Unexpected error during push: {ex}")
+                    
+            await db.commit()
+
 
 notification_service = NotificationService()

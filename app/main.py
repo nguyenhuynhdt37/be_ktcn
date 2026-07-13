@@ -36,7 +36,7 @@ from app.modules.auth.routers.profile import router as profile_router
 from app.modules.search.router import router as search_router
 from app.modules.statistics.router import router as statistics_portal_router
 from app.modules.consultation.routers import admin_router as consultation_admin_router, portal_router as consultation_portal_router
-from app.modules.notification.routers import router as notification_admin_router
+from app.modules.notification.routers import router as notification_admin_router, portal_router as notification_portal_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.program import admin_router as program_admin_router, portal_router as program_portal_router
 from app.modules.gallery import admin_router as gallery_admin_router, portal_router as gallery_portal_router
@@ -60,7 +60,7 @@ from app.modules.language.models import Language
 from app.modules.ai_hub.models import AIRequestLog
 from app.modules.statistics.models import SystemStatistics
 from app.modules.consultation.models import ConsultationLead
-from app.modules.notification.models import Notification
+from app.modules.notification.models import Notification, PushSubscription
 from app.modules.program.models import Program, ProgramTranslation
 from app.modules.gallery.models import DepartmentGallery, DepartmentGalleryTranslation, DepartmentGalleryItem
 
@@ -190,5 +190,10 @@ app.include_router(
     notification_admin_router,
     prefix=f"{settings.API_V1_STR}/admin/notifications",
     tags=["admin-notifications"],
+)
+app.include_router(
+    notification_portal_router,
+    prefix=f"{settings.API_V1_STR}/portal/notifications",
+    tags=["portal-notifications"],
 )
 app.include_router(dashboard_router, prefix=settings.API_V1_STR)

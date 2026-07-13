@@ -16,6 +16,7 @@ boto3==1.34.131
 Pillow==10.3.0
 requests==2.32.3
 beautifulsoup4==4.12.3
+pywebpush==1.14.0
 
 # Dev & Test Dependencies
 ruff==0.4.10

@@ -46,3 +46,21 @@ class Notification(BaseModel):
         Index("idx_notifications_recipient_created", "recipient_id", "created_at"),
         Index("idx_notifications_recipient_unread", "recipient_id", "read_at"),
     )
+
+
+class PushSubscription(BaseModel):
+    __tablename__ = "push_subscriptions"
+
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    p256dh: Mapped[str] = mapped_column(String(255), nullable=False)
+    auth: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+

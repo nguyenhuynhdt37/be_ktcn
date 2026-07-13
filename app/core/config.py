@@ -126,6 +126,11 @@ class Settings(BaseSettings):
     TRANSLATION_MAX_INPUT_LENGTH: int = 1000
     TRANSLATION_MAX_BATCH_SIZE: int = 50
 
+    # VAPID Configurations for Web Push
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_CLAIM_EMAIL: str = "admin@itup.io.vn"
+
 
 
 settings = Settings()

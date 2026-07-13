@@ -140,6 +140,44 @@ class ArticleService:
         except Exception as e:
             logger.warning("Failed to trigger article publish notification: {}", e)
 
+        # Gửi Web Push Notification cho Portal khách (V1)
+        try:
+            from app.modules.notification.service import notification_service
+            
+            title_vi = ""
+            excerpt_vi = ""
+            for t in getattr(article, "translations", []):
+                if t.language and t.language.code == "vi":
+                    title_vi = t.title
+                    excerpt_vi = t.excerpt or ""
+                    break
+            
+            if not title_vi:
+                for t in getattr(article, "translations", []):
+                    title_vi = t.title
+                    excerpt_vi = t.excerpt or ""
+                    break
+
+            slug_vi = ""
+            for t in getattr(article, "translations", []):
+                if t.language and t.language.code == "vi":
+                    slug_vi = t.slug
+                    break
+            if not slug_vi:
+                for t in getattr(article, "translations", []):
+                    slug_vi = t.slug
+                    break
+
+            target_url = f"/vi/thong-bao/{slug_vi}" if slug_vi else "/vi/thong-bao"
+
+            await notification_service.send_web_push_to_all(
+                title="Thông báo mới: " + title_vi,
+                body=excerpt_vi[:120] + "..." if len(excerpt_vi) > 120 else excerpt_vi,
+                url=target_url
+            )
+        except Exception as e:
+            logger.warning("Failed to trigger web push notification: {}", e)
+
     async def list_articles(
         self,
         db: AsyncSession,

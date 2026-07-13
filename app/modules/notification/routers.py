@@ -17,6 +17,8 @@ from app.modules.notification.schemas import (
     NotificationPaginationResponse,
     NotificationResponse,
     UnreadCountResponse,
+    PushSubscriptionCreate,
+    PushSubscriptionUnsubscribe,
 )
 from app.modules.notification.service import notification_service
 from app.shared.redis import get_redis
@@ -144,3 +146,58 @@ async def notification_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# Portal Router for Web Push Notifications
+portal_router = APIRouter()
+
+
+@portal_router.get("/vapid-public-key")
+async def get_vapid_public_key() -> dict:
+    from app.core.config import settings
+    return {"public_key": settings.VAPID_PUBLIC_KEY}
+
+
+@portal_router.post("/subscribe")
+async def subscribe_push_device(
+    payload: PushSubscriptionCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    current_user_id = None
+    
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        token = request.cookies.get("access_token")
+        
+    if token:
+        try:
+            from app.modules.auth.service import auth_service
+            payload_data = auth_service.verify_token(token)
+            if payload_data and "sub" in payload_data:
+                current_user_id = uuid.UUID(payload_data["sub"])
+        except Exception:
+            pass
+
+    if not payload.user_agent:
+        payload.user_agent = request.headers.get("user-agent")
+
+    await notification_service.subscribe_device(
+        db,
+        subscription_data=payload,
+        user_id=current_user_id
+    )
+    return {"success": True, "message": "Đăng ký nhận thông báo đẩy thành công"}
+
+
+@portal_router.post("/unsubscribe")
+async def unsubscribe_push_device(
+    payload: PushSubscriptionUnsubscribe,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await notification_service.unsubscribe_device(db, endpoint=payload.endpoint)
+    return {"success": True, "message": "Hủy đăng ký nhận thông báo đẩy thành công"}
+

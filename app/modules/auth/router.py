@@ -44,8 +44,13 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
     secure = settings.ENV == "production"
     samesite = "lax"
 
-    # Nếu request gọi qua HTTPS (như trên server API thực tế), ta bắt buộc phải dùng SameSite=None, Secure=True để hỗ trợ client ở các origin khác (như dev ở localhost)
-    if request and request.url.scheme == "https":
+    # Nếu request gọi qua HTTPS hoặc được chuyển tiếp HTTPS qua Proxy, ta bắt buộc phải dùng SameSite=None, Secure=True để hỗ trợ client ở các origin khác (như dev ở localhost)
+    is_https = False
+    if request:
+        if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+            is_https = True
+            
+    if is_https:
         secure = True
         samesite = "none"
 

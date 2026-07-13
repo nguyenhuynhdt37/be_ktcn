@@ -230,23 +230,29 @@ class ArticleAuthorListResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def resolve_avatar_url(cls, data: Any) -> Any:
-        from app.core.config import settings
-        protocol = "https" if settings.MINIO_SECURE else "http"
+        prefix = "/api/v1/portal/media/file/"
         if hasattr(data, "avatar") and data.avatar:
-            data.avatar_url = f"{protocol}://{settings.MINIO_ENDPOINT}/{data.avatar.bucket or settings.MINIO_BUCKET}/{data.avatar.object_key}"
+            data.avatar_url = f"{prefix}{data.avatar.object_key}"
         elif hasattr(data, "avatar_url") and data.avatar_url:
             v = data.avatar_url
-            if not (v.startswith("http://") or v.startswith("https://")):
-                data.avatar_url = f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{v}"
+            if not v.startswith(prefix):
+                if "files/" in v:
+                    object_key = "files/" + v.split("files/")[-1]
+                    data.avatar_url = f"{prefix}{object_key}"
+                else:
+                    data.avatar_url = f"{prefix}{v}"
         elif isinstance(data, dict):
             avatar = data.get("avatar")
             if avatar and isinstance(avatar, dict) and avatar.get("object_key"):
-                bucket = avatar.get("bucket") or settings.MINIO_BUCKET
-                data["avatar_url"] = f"{protocol}://{settings.MINIO_ENDPOINT}/{bucket}/{avatar['object_key']}"
+                data["avatar_url"] = f"{prefix}{avatar['object_key']}"
             elif data.get("avatar_url"):
                 v = data["avatar_url"]
-                if not (v.startswith("http://") or v.startswith("https://")):
-                    data["avatar_url"] = f"{protocol}://{settings.MINIO_ENDPOINT}/{settings.MINIO_BUCKET}/{v}"
+                if not v.startswith(prefix):
+                    if "files/" in v:
+                        object_key = "files/" + v.split("files/")[-1]
+                        data["avatar_url"] = f"{prefix}{object_key}"
+                    else:
+                        data["avatar_url"] = f"{prefix}{v}"
         return data
 
 

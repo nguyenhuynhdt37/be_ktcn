@@ -253,9 +253,15 @@ async def list_users(
     list_items = []
     for item in items:
         avatar_url = item.avatar_url
+        prefix = "/api/v1/portal/media/file/"
         if item.avatar:
-            protocol = "https" if settings.MINIO_SECURE else "http"
-            avatar_url = f"{protocol}://{settings.MINIO_ENDPOINT}/{item.avatar.bucket or settings.MINIO_BUCKET}/{item.avatar.object_key}"
+            avatar_url = f"{prefix}{item.avatar.object_key}"
+        elif avatar_url and not avatar_url.startswith(prefix):
+            if "files/" in avatar_url:
+                object_key = "files/" + avatar_url.split("files/")[-1]
+                avatar_url = f"{prefix}{object_key}"
+            else:
+                avatar_url = f"{prefix}{avatar_url}"
             
         list_items.append(
             UserListItemResponse(

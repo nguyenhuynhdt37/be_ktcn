@@ -13,6 +13,9 @@ mkdir -p "$BACKUP_DIR"
 
 echo -e "${BLUE}=== BẮT ĐẦU XUẤT (BACKUP) DATABASE VÀ MINIO ===${CLEAR}"
 
+# Tự động lấy tên network từ container be_minio
+NETWORK_NAME=$(docker inspect be_minio -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' || echo "be_default")
+
 # 1. Kiểm tra các container có đang chạy không
 if ! docker ps | grep -q "be_postgres" || ! docker ps | grep -q "be_minio"; then
     echo -e "${RED}Lỗi: Các container be_postgres hoặc be_minio chưa chạy. Hãy chạy docker compose up -d trước!${CLEAR}"
@@ -32,7 +35,7 @@ mkdir -p "$BACKUP_DIR/minio_temp"
 
 docker run --rm \
   --entrypoint sh \
-  --network be_default \
+  --network "$NETWORK_NAME" \
   -v "$(pwd)/$BACKUP_DIR/minio_temp:/backup" \
   minio/mc -c "
     mc alias set myminio http://minio:9000 minio_admin minio_password && \

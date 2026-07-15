@@ -1,0 +1,459 @@
+{
+  "schema_version": 1,
+  "programs": [
+    {
+      "department_code": "FIT",
+      "code": "60.48.02.01",
+      "degree_level": "master",
+      "duration_years": 2.0,
+      "training_mode": "postgraduate",
+      "sort_order": 100,
+      "is_active": true,
+      "is_published": true,
+      "translations": {
+        "vi": {
+          "name": "Thạc sĩ Công nghệ thông tin",
+          "slug": "thac-si-cong-nghe-thong-tin",
+          "short_description": "Chương trình đào tạo trình độ thạc sĩ theo hướng nghiên cứu ứng dụng hoặc nghiên cứu chuyên sâu.",
+          "description": "Chương trình đào tạo Thạc sĩ Công nghệ thông tin gồm 7 học phần bắt buộc cung cấp kiến thức cơ sở ngành và nhóm học phần tự chọn theo định hướng nghề nghiệp. Học viên chủ động lựa chọn học phần phù hợp với hướng nghiên cứu chuyên sâu hoặc nghiên cứu ứng dụng.",
+          "career_opportunities": null,
+          "admissions_info": "Toán rời rạc; Cấu trúc dữ liệu và giải thuật; Ngoại ngữ."
+        },
+        "en": {
+          "name": "Master of Information Technology",
+          "slug": "master-of-information-technology",
+          "short_description": "A master's programme supporting applied and advanced research pathways.",
+          "description": "The Master of Information Technology programme includes seven required courses in the discipline foundations and elective courses aligned with professional pathways. Learners can select courses that support either applied or advanced research interests.",
+          "career_opportunities": null,
+          "admissions_info": "Discrete Mathematics; Data Structures and Algorithms; Foreign Language."
+        }
+      },
+      "profile": {
+        "versions": [
+          {
+            "version_year": 2017,
+            "cohort_code": null,
+            "total_credits": 39.0,
+            "is_current": false,
+            "is_published": true,
+            "sort_order": 0,
+            "translations": {
+              "vi": {
+                "title": "Chương trình đào tạo Thạc sĩ Công nghệ thông tin năm 2017",
+                "summary": "Hồ sơ được số hóa từ chương trình công bố ngày 13/06/2017, gồm 21 tín chỉ bắt buộc và 18 tín chỉ tự chọn.",
+                "general_objective": "Học viên có thể thực hiện luận văn theo hướng nghiên cứu ứng dụng về xây dựng, quản trị hệ thống mạng và phát triển phần mềm phục vụ nhu cầu xã hội; hoặc theo hướng nghiên cứu chuyên sâu về xử lý ngôn ngữ tự nhiên, nhận dạng mẫu, trí tuệ nhân tạo và khai phá dữ liệu.",
+                "career_opportunities": null
+              },
+              "en": {
+                "title": "2017 Master of Information Technology Curriculum",
+                "summary": "Digitised from the curriculum published on 13 June 2017, including 21 required credits and 18 elective credits.",
+                "general_objective": "Learners may complete a thesis in applied research on computer network development and administration or software development for societal needs; or in advanced research on natural language processing, pattern recognition, artificial intelligence and data mining.",
+                "career_opportunities": null
+              }
+            },
+            "documents": [
+              {
+                "document_type": "source_page",
+                "source_url": "https://vienktcn.vinhuni.edu.vn/dao-tao/dao-tao-sau-dai-hoc/seo/chuong-trinh-dao-tao-thac-sy-nganh-cong-nghe-thong-tin-77300",
+                "object_key": null,
+                "mime_type": "text/html",
+                "file_size": null,
+                "page_count": null,
+                "checksum_sha256": null,
+                "sort_order": 0,
+                "translations": {
+                  "vi": {
+                    "title": "Trang công bố chương trình đào tạo năm 2017",
+                    "description": "Nguồn dữ liệu trên website Viện Kỹ thuật và Công nghệ."
+                  },
+                  "en": {
+                    "title": "2017 curriculum source page",
+                    "description": "Source page on the former Institute of Engineering and Technology website."
+                  }
+                }
+              }
+            ],
+            "outcomes": [],
+            "courses": [
+              {
+                "course_code": null,
+                "row_type": "group",
+                "credits": null,
+                "credits_text": null,
+                "semester": null,
+                "knowledge_block": null,
+                "course_type": null,
+                "managing_unit": null,
+                "sort_order": 0,
+                "translations": {
+                  "vi": { "name": "I. Các môn học bắt buộc (7 môn - 21 tín chỉ)" },
+                  "en": { "name": "I. Required courses (7 courses - 21 credits)" }
+                }
+              },
+              {
+                "course_code": "1",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức bắt buộc",
+                "course_type": "Bắt buộc",
+                "managing_unit": null,
+                "sort_order": 1,
+                "translations": {
+                  "vi": { "name": "Cấu trúc dữ liệu và giải thuật nâng cao" },
+                  "en": { "name": "Advanced data structures and algorithms" }
+                }
+              },
+              {
+                "course_code": "2",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức bắt buộc",
+                "course_type": "Bắt buộc",
+                "managing_unit": null,
+                "sort_order": 2,
+                "translations": {
+                  "vi": { "name": "Mạng không dây" },
+                  "en": { "name": "Wireless network" }
+                }
+              },
+              {
+                "course_code": "3",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức bắt buộc",
+                "course_type": "Bắt buộc",
+                "managing_unit": null,
+                "sort_order": 3,
+                "translations": {
+                  "vi": { "name": "Nguyên lý các ngôn ngữ lập trình" },
+                  "en": { "name": "Principles of programming languages" }
+                }
+              },
+              {
+                "course_code": "4",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức bắt buộc",
+                "course_type": "Bắt buộc",
+                "managing_unit": null,
+                "sort_order": 4,
+                "translations": {
+                  "vi": { "name": "Các hệ cơ sở dữ liệu nâng cao" },
+                  "en": { "name": "Advanced data systems" }
+                }
+              },
+              {
+                "course_code": "5",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức bắt buộc",
+                "course_type": "Bắt buộc",
+                "managing_unit": null,
+                "sort_order": 5,
+                "translations": {
+                  "vi": { "name": "Các phương pháp phân tích và thiết kế phần mềm tiên tiến" },
+                  "en": { "name": "Advanced methods for analysis and design of software" }
+                }
+              },
+              {
+                "course_code": "6",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức bắt buộc",
+                "course_type": "Bắt buộc",
+                "managing_unit": null,
+                "sort_order": 6,
+                "translations": {
+                  "vi": { "name": "Mạng máy tính nâng cao" },
+                  "en": { "name": "Advanced computer networking" }
+                }
+              },
+              {
+                "course_code": "7",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức bắt buộc",
+                "course_type": "Bắt buộc",
+                "managing_unit": null,
+                "sort_order": 7,
+                "translations": {
+                  "vi": { "name": "Khai phá dữ liệu" },
+                  "en": { "name": "Data mining" }
+                }
+              },
+              {
+                "course_code": null,
+                "row_type": "group",
+                "credits": null,
+                "credits_text": null,
+                "semester": null,
+                "knowledge_block": null,
+                "course_type": null,
+                "managing_unit": null,
+                "sort_order": 8,
+                "translations": {
+                  "vi": { "name": "II. Các môn học tự chọn (chọn 6 môn - 18 tín chỉ)" },
+                  "en": { "name": "II. Elective courses (select 6 courses - 18 credits)" }
+                }
+              },
+              {
+                "course_code": null,
+                "row_type": "group",
+                "credits": null,
+                "credits_text": null,
+                "semester": null,
+                "knowledge_block": null,
+                "course_type": null,
+                "managing_unit": null,
+                "sort_order": 9,
+                "translations": {
+                  "vi": { "name": "2.1. Kiến thức cơ sở (chọn 4 trong 8 môn - 12 tín chỉ)" },
+                  "en": { "name": "2.1. Foundation electives (select 4 of 8 courses - 12 credits)" }
+                }
+              },
+              {
+                "course_code": "8",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 10,
+                "translations": {
+                  "vi": { "name": "Quá trình ngẫu nhiên" },
+                  "en": { "name": "Discrete stochastic processes" }
+                }
+              },
+              {
+                "course_code": "9",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 11,
+                "translations": {
+                  "vi": { "name": "Trí tuệ nhân tạo nâng cao" },
+                  "en": { "name": "Advanced artificial intelligence" }
+                }
+              },
+              {
+                "course_code": "10",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 12,
+                "translations": {
+                  "vi": { "name": "Logic mờ và lập luận xấp xỉ" },
+                  "en": { "name": "Fuzzy logic and approximate reasoning" }
+                }
+              },
+              {
+                "course_code": "11",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 13,
+                "translations": {
+                  "vi": { "name": "Tối ưu hóa" },
+                  "en": { "name": "Optimization" }
+                }
+              },
+              {
+                "course_code": "12",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 14,
+                "translations": {
+                  "vi": { "name": "Kiến trúc máy tính tiên tiến" },
+                  "en": { "name": "Advanced computer architecture" }
+                }
+              },
+              {
+                "course_code": "13",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 15,
+                "translations": {
+                  "vi": { "name": "An toàn và bảo mật thông tin" },
+                  "en": { "name": "Network safety and security" }
+                }
+              },
+              {
+                "course_code": "14",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 16,
+                "translations": {
+                  "vi": { "name": "Xử lý ảnh nâng cao" },
+                  "en": { "name": "Advanced image processing" }
+                }
+              },
+              {
+                "course_code": "15",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức cơ sở",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 17,
+                "translations": {
+                  "vi": { "name": "Web ngữ nghĩa" },
+                  "en": { "name": "Semantic Web" }
+                }
+              },
+              {
+                "course_code": null,
+                "row_type": "group",
+                "credits": null,
+                "credits_text": null,
+                "semester": null,
+                "knowledge_block": null,
+                "course_type": null,
+                "managing_unit": null,
+                "sort_order": 18,
+                "translations": {
+                  "vi": { "name": "2.2. Kiến thức chuyên ngành (chọn 2 trong 5 môn - 6 tín chỉ)" },
+                  "en": { "name": "2.2. Specialised electives (select 2 of 5 courses - 6 credits)" }
+                }
+              },
+              {
+                "course_code": "16",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức chuyên ngành",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 19,
+                "translations": {
+                  "vi": { "name": "Nhận dạng mẫu" },
+                  "en": { "name": "Pattern classification" }
+                }
+              },
+              {
+                "course_code": "17",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức chuyên ngành",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 20,
+                "translations": {
+                  "vi": { "name": "Xử lý ngôn ngữ tự nhiên" },
+                  "en": { "name": "Natural language processing" }
+                }
+              },
+              {
+                "course_code": "18",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức chuyên ngành",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 21,
+                "translations": {
+                  "vi": { "name": "Công nghệ phần mềm" },
+                  "en": { "name": "Software Engineering" }
+                }
+              },
+              {
+                "course_code": "19",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức chuyên ngành",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 22,
+                "translations": {
+                  "vi": { "name": "Các mô hình và kiến trúc hệ thống thông tin quản lý" },
+                  "en": { "name": "Model and architecture of management information system" }
+                }
+              },
+              {
+                "course_code": "20",
+                "row_type": "course",
+                "credits": 3.0,
+                "credits_text": "3",
+                "semester": null,
+                "knowledge_block": "Kiến thức chuyên ngành",
+                "course_type": "Tự chọn",
+                "managing_unit": null,
+                "sort_order": 23,
+                "translations": {
+                  "vi": { "name": "Đánh giá hiệu năng mạng máy tính" },
+                  "en": { "name": "Performance evaluation of computer networks" }
+                }
+              },
+              {
+                "course_code": null,
+                "row_type": "summary",
+                "credits": 39.0,
+                "credits_text": "39",
+                "semester": null,
+                "knowledge_block": null,
+                "course_type": null,
+                "managing_unit": null,
+                "sort_order": 24,
+                "translations": {
+                  "vi": { "name": "Tổng khối lượng học phần" },
+                  "en": { "name": "Total taught-course credits" }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

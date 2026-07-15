@@ -68,7 +68,14 @@ async def admin_credentials() -> tuple[str, str]:
 
 @pytest.fixture(scope="function")
 async def client() -> AsyncGenerator[httpx.AsyncClient, None]:
-    async with httpx.AsyncClient(app=app, base_url="http://localhost") as ac:
+    # Give each test an isolated client identity so Redis-backed rate limits do not
+    # leak between otherwise independent test cases.
+    headers = {"x-real-ip": f"test-{uuid.uuid4()}"}
+    async with httpx.AsyncClient(
+        app=app,
+        base_url="http://localhost",
+        headers=headers,
+    ) as ac:
         yield ac
 
 

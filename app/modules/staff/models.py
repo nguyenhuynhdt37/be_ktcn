@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 from typing import List, Optional
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models.base import BaseModel
@@ -18,6 +18,20 @@ class Staff(BaseModel):
     Lưu hồ sơ thông tin giảng viên/cán bộ.
     """
     __tablename__ = "staffs"
+    __table_args__ = (
+        Index("idx_staff_profile_status", "profile_status"),
+        Index("idx_staff_is_visible", "is_visible"),
+        Index(
+            "uidx_staff_identity",
+            "normalized_full_name",
+            "date_of_birth",
+            "department_id",
+            unique=True,
+            postgresql_where=text(
+                "deleted_at IS NULL AND date_of_birth IS NOT NULL"
+            ),
+        ),
+    )
 
     department_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False

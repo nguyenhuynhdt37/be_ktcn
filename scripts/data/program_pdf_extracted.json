@@ -1,0 +1,1268 @@
+{
+  "7520216": {
+    "source_file": "001_Ban mo tao chuong trinh dao tao (K60).pdf",
+    "source_pages": [
+      16,
+      17,
+      18
+    ],
+    "total_credits": 150,
+    "courses": [
+      {
+        "course_code": "ELE20001",
+        "name": "Nhập môn ngành kỹ thuật",
+        "credits_text": "3",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ENG10001",
+        "name": "Tiếng Anh 1",
+        "credits_text": "3",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "MAT20002",
+        "name": "Đại số tuyến tính (nhóm ngành Tự nhiên-Kỹ thuật)",
+        "credits_text": "3",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL11001",
+        "name": "Triết học Mác - Lênin",
+        "credits_text": "3",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL11002",
+        "name": "Kinh tế chính trị Mác - Lênin",
+        "credits_text": "2",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "MAT20006",
+        "name": "Giải tích",
+        "credits_text": "5",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ENG10002",
+        "name": "Tiếng Anh 2",
+        "credits_text": "4",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL11003",
+        "name": "Chủ nghĩa xã hội khoa học",
+        "credits_text": "2",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "PHY20001",
+        "name": "Vật lí đại cương",
+        "credits_text": "5",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "NAP10001",
+        "name": "Giáo dục quốc phòng 1 (Đường lối quân sự)",
+        "credits_text": "(3)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "NAP10002",
+        "name": "Giáo dục quốc phòng 2 (Công tác QPAN)",
+        "credits_text": "(2)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "NAP10003",
+        "name": "Giáo dục quốc phòng 3 (QS chung & chiến thuật, KT bắn súng...)",
+        "credits_text": "(3)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "SPO10001",
+        "name": "Giáo dục thể chất",
+        "credits_text": "(5)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "SKI10000",
+        "name": "Kỹ năng mềm",
+        "credits_text": "(3)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "CON20001",
+        "name": "Hình họa - Vẽ kỹ thuật",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "CHE20002",
+        "name": "Hoá học đại cương",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20002",
+        "name": "Kỹ thuật điện, điện tử",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF20004",
+        "name": "Tin học nhóm ngành kỹ thuật",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20003",
+        "name": "Kĩ năng viết và tư duy phản biện",
+        "credits_text": "3",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20004",
+        "name": "Kỹ thuật lập trình",
+        "credits_text": "5",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "MAT20008",
+        "name": "Toán kỹ thuật",
+        "credits_text": "2",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20005",
+        "name": "Thực hành cơ sở điện, điện tử",
+        "credits_text": "4",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "MAT20009",
+        "name": "Xác suất và thống kê",
+        "credits_text": "3",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20006",
+        "name": "Điện tử số và vi xử lý",
+        "credits_text": "5",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30001",
+        "name": "Lý thuyết điều khiển tự động",
+        "credits_text": "4",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20007",
+        "name": "Lý thuyết mạch điện",
+        "credits_text": "3",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Tự chọn (chọn 1 trong 3 học phần)",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "BUA20004",
+        "name": "Khởi sự doanh nghiệp",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "LAW20004",
+        "name": "Pháp luật đại cương",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "BUA20005",
+        "name": "Văn hóa doanh nghiệp",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "ELE20008",
+        "name": "Trường điện từ",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30002",
+        "name": "Điện tử công suất",
+        "credits_text": "4",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL11004",
+        "name": "Lịch sử Đảng cộng sản Việt Nam",
+        "credits_text": "2",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL10002",
+        "name": "Tư tưởng Hồ Chí Minh",
+        "credits_text": "2",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE30005",
+        "name": "Máy điện và khí cụ điện",
+        "credits_text": "4",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE30006",
+        "name": "Thực hành máy điện, điện tử công suất",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30003",
+        "name": "Điều khiển logic và PLC",
+        "credits_text": "4",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30004",
+        "name": "Đồ án 1",
+        "credits_text": "2",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE30008",
+        "name": "Hệ thống cung cấp điện",
+        "credits_text": "4",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "BUA20006",
+        "name": "Quản trị doanh nghiệp và marketing",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30005",
+        "name": "Truyền động điện",
+        "credits_text": "4",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30006",
+        "name": "Đồ án 2",
+        "credits_text": "2",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30007",
+        "name": "Hệ thống đo lường và điều khiển trong công nghiệp",
+        "credits_text": "5",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30008",
+        "name": "Lý thuyết điều khiển hiện đại",
+        "credits_text": "4",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30009",
+        "name": "Thiết kế hệ thống nhúng",
+        "credits_text": "4",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Chuyên ngành - Chuyên đề 1",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Chuyên ngành - Chuyên đề 2",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Chuyên ngành - Chuyên đề 3",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30014",
+        "name": "Đồ án 3",
+        "credits_text": "2",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30024",
+        "name": "Thực hành chuyên ngành",
+        "credits_text": "4",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30028",
+        "name": "Thực tập tốt nghiệp",
+        "credits_text": "2",
+        "semester": "10",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30027",
+        "name": "Đồ án tốt nghiệp",
+        "credits_text": "8",
+        "semester": "10",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Chuyên ngành 1 (chọn 3 trong 6 chuyên đề)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30016",
+        "name": "Hệ điều khiển nhúng hiện đại",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 1 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30017",
+        "name": "Hệ thống điều khiển thông minh",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 1 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30020",
+        "name": "Kỹ thuật robotics",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 1 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30022",
+        "name": "Thị giác máy tính trong hệ thống điều khiển",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 1 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30023",
+        "name": "Thiết kế bộ điều khiển số trên nền DSP, ARM",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 1 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30025",
+        "name": "Trí tuệ nhân tạo trong điều khiển",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 1 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": null,
+        "name": "Chuyên ngành 2 (chọn 3 trong 6 chuyên đề)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "AUT30012",
+        "name": "Điều khiển hệ điện - cơ",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 2 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30013",
+        "name": "Điều khiển và giám sát hệ thống tự động hóa với Labview",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 2 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30018",
+        "name": "Hệ thống điều khiển thủy lực và khí nén",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 2 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30019",
+        "name": "Hệ thống SCADA & DCS",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 2 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30021",
+        "name": "Robot công nghiệp",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 2 (chọn 3 trong 6 chuyên đề)"
+      },
+      {
+        "course_code": "AUT30026",
+        "name": "Truyền động điện thông minh",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Chuyên ngành 2 (chọn 3 trong 6 chuyên đề)"
+      }
+    ]
+  },
+  "7480201": {
+    "source_file": "001_2017-IT-Program Specification (Vietnamese).pdf",
+    "source_pages": [
+      12,
+      20,
+      25,
+      26,
+      27,
+      28
+    ],
+    "total_credits": 150,
+    "career_opportunities": "Sinh viên tốt nghiệp ngành Công nghệ thông tin có khả năng đảm nhận các vị trí công tác sau: - Chuyên gia nghiên cứu và phát triển về Công nghệ phần mềm; - Lập trình viên trên trên môi trường di động và môi trường Web; - Lập trình viên hệ thống và cơ sở dữ liệu; - Phát triển các hệ thống thông minh; - Chuyên viên phân tích, thiết kế, phát triển hệ thống và tư vấn dịch vụ CNTT; - Quản trị mạng, chuyên viên an ninh mạng; - Chuyên viên kiểm thử phần mềm, phân tích dữ liệu bằng máy tính; - Có khả năng phát triển lên trưởng nhóm phát triển phần mềm, quản lý hệ thống thông tin, quản lý dự án; - Làm giảng viên và có thể học lên các bậc cao hơn như thạc sĩ, tiến sĩ ngành CNTT.",
+    "courses": [
+      {
+        "course_code": "ELE20001",
+        "name": "Nhập môn ngành kỹ thuật",
+        "credits_text": "3",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ENG10001",
+        "name": "Tiếng Anh 1",
+        "credits_text": "3",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "MAT20002",
+        "name": "Đại số tuyến tính",
+        "credits_text": "3",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL10001",
+        "name": "Những nguyên lý cơ bản của CN Mác- Lênin",
+        "credits_text": "5",
+        "semester": "1",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "MAT20006",
+        "name": "Giải tích",
+        "credits_text": "5",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ENG10002",
+        "name": "Tiếng Anh 2",
+        "credits_text": "4",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL10002",
+        "name": "Tư tưởng Hồ Chí Minh",
+        "credits_text": "2",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "PHY20001",
+        "name": "Vật lí đại cương",
+        "credits_text": "5",
+        "semester": "2",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "NAP10001",
+        "name": "Giáo dục quốc phòng 1 (Đường lối quân sự)",
+        "credits_text": "(3)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "NAP10002",
+        "name": "Giáo dục quốc phòng 2 (Công tác QPAN)",
+        "credits_text": "(2)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "NAP10003",
+        "name": "Giáo dục quốc phòng 3 (QS chung & chiến thuật, KT bắn súng...)",
+        "credits_text": "(3)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "SPO10001",
+        "name": "Giáo dục thể chất",
+        "credits_text": "(5)",
+        "semester": "1-3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "CON20001",
+        "name": "Hình họa - Vẽ kỹ thuật",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "CHE20002",
+        "name": "Hóa học đại cương",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20002",
+        "name": "Kỹ thuật điện, điện tử",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF20004",
+        "name": "Tin học nhóm ngành KT",
+        "credits_text": "4",
+        "semester": "3",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30001",
+        "name": "Kiến trúc máy tính",
+        "credits_text": "3",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "ELE20003",
+        "name": "Kĩ năng viết và tư duy phản biện",
+        "credits_text": "3",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30002",
+        "name": "Ngôn ngữ lập trình C",
+        "credits_text": "4",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30004",
+        "name": "Tiếng Anh chuyên ngành",
+        "credits_text": "3",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "MAT20009",
+        "name": "Xác suất và thống kê",
+        "credits_text": "3",
+        "semester": "4",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30005",
+        "name": "Cấu trúc dữ liệu và giải thuật",
+        "credits_text": "4",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30006",
+        "name": "Cơ sở dữ liệu",
+        "credits_text": "3",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "POL10003",
+        "name": "Đường lối cách mạng của Đảng CSVN",
+        "credits_text": "3",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30019",
+        "name": "Toán rời rạc",
+        "credits_text": "3",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Tự chọn 1",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30013",
+        "name": "Lập trình hướng đối tượng",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30015",
+        "name": "Mạng máy tính",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30017",
+        "name": "Phân tích và thiết kế hệ thống thông tin",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30007",
+        "name": "Hệ quản trị cơ sở dữ liệu",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Tự chon 2",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF20009",
+        "name": "Hệ điều hành",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30023",
+        "name": "Lập trình Java",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30025",
+        "name": "Lập trình Web",
+        "credits_text": "4",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "BUA20006",
+        "name": "Quản trị doanh nghiệp và marketing",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Tự chọn 3",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30029",
+        "name": "Thực tập cơ sở",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30033",
+        "name": "An toàn thông tin",
+        "credits_text": "3",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30034",
+        "name": "Công nghệ phần mềm",
+        "credits_text": "3",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30036",
+        "name": "Tương tác người- máy",
+        "credits_text": "3",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF20007",
+        "name": "Trí tuệ nhân tạo",
+        "credits_text": "3",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF20008",
+        "name": "Xử lý ảnh",
+        "credits_text": "3",
+        "semester": "8",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "CN - Chuyên đề 1",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "CN - Chuyên đề 2",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "CN - Chuyên đề 3",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "CN - Chuyên đề 4",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "placeholder",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30058",
+        "name": "Thực tập chuyên ngành",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30063",
+        "name": "Thực tập tốt nghiệp",
+        "credits_text": "3",
+        "semester": "10",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30062",
+        "name": "Đồ án tốt nghiệp",
+        "credits_text": "6",
+        "semester": "10",
+        "row_type": "course",
+        "knowledge_block": null
+      },
+      {
+        "course_code": null,
+        "name": "Tự chọn 1 (chọn 1 trong 3 học phần)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "BUA20004",
+        "name": "Khởi sự doanh nghiệp",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 1 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "LAW20004",
+        "name": "Pháp luật đại cương",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 1 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "BUA20005",
+        "name": "Văn hóa doanh nghiệp",
+        "credits_text": "2",
+        "semester": "5",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 1 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": null,
+        "name": "Tự chọn 2 (chọn 1 trong 3 học phần)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30011",
+        "name": "Cơ sở truyền tin",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 2 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "INF30012",
+        "name": "Kỹ thuật vi xử lý",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 2 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "INF30016",
+        "name": "Ngôn ngữ hình thức và Automata",
+        "credits_text": "3",
+        "semester": "6",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 2 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": null,
+        "name": "Tự chọn 3 (chọn 1 trong 3 học phần)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30022",
+        "name": "Đồ họa máy tính",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 3 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "INF30027",
+        "name": "Phát triển ứng dụng Web với PHP & MySQL",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 3 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": "INF30032",
+        "name": "Xử lý tín hiệu số",
+        "credits_text": "3",
+        "semester": "7",
+        "row_type": "course",
+        "knowledge_block": "Tự chọn 3 (chọn 1 trong 3 học phần)"
+      },
+      {
+        "course_code": null,
+        "name": "Định hướng Khoa học máy tính (chọn 4 trong 6 học phần)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30038",
+        "name": "Các giải thuật lập trình nâng cao",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Khoa học máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30039",
+        "name": "Chương trình dịch",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Khoa học máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30041",
+        "name": "Đánh giá độ phức tạp thuật toán",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Khoa học máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30052",
+        "name": "Lý thuyết tối ưu",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Khoa học máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30059",
+        "name": "Thương mại điện tử",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Khoa học máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30060",
+        "name": "Xử lý ngôn ngữ tự nhiên",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Khoa học máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": null,
+        "name": "Định hướng Các hệ thống thông tin (chọn 4 trong 6 học phần)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30040",
+        "name": "Cơ sở dữ liệu nâng cao",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Các hệ thống thông tin (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30043",
+        "name": "Hệ thống thông tin quản lí",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Các hệ thống thông tin (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30046",
+        "name": "Kiến trúc phần mềm",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Các hệ thống thông tin (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30045",
+        "name": "Khai phá dữ liệu",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Các hệ thống thông tin (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30054",
+        "name": "Máy tìm kiếm",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Các hệ thống thông tin (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30056",
+        "name": "Phát triển ứng dụng dựa trên mã nguồn mở",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Các hệ thống thông tin (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": null,
+        "name": "Định hướng Kỹ thuật máy tính (chọn 4 trong 6 học phần)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30044",
+        "name": "Học máy",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Kỹ thuật máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30047",
+        "name": "Lập trình .NET",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Kỹ thuật máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30048",
+        "name": "Lập trình cho Robot",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Kỹ thuật máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30049",
+        "name": "Lập trình cho thiết bị di động",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Kỹ thuật máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30053",
+        "name": "Mạng neural",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Kỹ thuật máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30061",
+        "name": "Xử lý tiếng nói",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Kỹ thuật máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": null,
+        "name": "Định hướng Mạng máy tính (chọn 4 trong 6 học phần)",
+        "credits_text": null,
+        "semester": null,
+        "row_type": "group",
+        "knowledge_block": null
+      },
+      {
+        "course_code": "INF30037",
+        "name": "An ninh mạng",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Mạng máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30042",
+        "name": "Hệ điều hành mạng",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Mạng máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30050",
+        "name": "Lập trình Java nâng cao",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Mạng máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30051",
+        "name": "Lập trình mạng",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Mạng máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30055",
+        "name": "Phân tích, thiết kế mạng",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Mạng máy tính (chọn 4 trong 6 học phần)"
+      },
+      {
+        "course_code": "INF30057",
+        "name": "Quản trị mạng",
+        "credits_text": "3",
+        "semester": "9",
+        "row_type": "course",
+        "knowledge_block": "Định hướng Mạng máy tính (chọn 4 trong 6 học phần)"
+      }
+    ]
+  }
+}

@@ -90,6 +90,7 @@ omniroute/config.yaml
 
 # Scratch directories
 scratch/
+tmp/
 
 # DB Dumps
 university_cms.sql

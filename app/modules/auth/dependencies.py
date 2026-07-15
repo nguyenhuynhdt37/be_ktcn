@@ -15,7 +15,7 @@ def resolve_avatar_url(avatar_url: Optional[str]) -> Optional[str]:
         return None
     if avatar_url.startswith("http://") or avatar_url.startswith("https://") or avatar_url.startswith("data:"):
         return avatar_url
-    
+
     protocol = "https" if settings.MINIO_SECURE else "http"
     prefix = "/api/v1/portal/media/file/"
     if avatar_url.startswith(prefix):
@@ -29,6 +29,15 @@ from app.modules.auth.models import User
 from app.modules.auth.schemas import TokenPayload, UserResponse
 
 reusable_oauth2_optional = HTTPBearer(auto_error=False)
+
+
+def resolve_user_access(user: User) -> tuple[list[str], bool]:
+    is_super_admin = user.username == "superadmin"
+    is_admin = is_super_admin or user.is_admin
+    roles = (
+        ["super_admin"] if is_super_admin else (["admin"] if is_admin else ["member"])
+    )
+    return roles, is_admin
 
 
 async def get_current_user_optional(
@@ -46,7 +55,7 @@ async def get_current_user_optional(
 
     if not token:
         return None
-        
+
     try:
         payload = decode_access_token(token)
         token_data = TokenPayload(**payload)
@@ -63,7 +72,7 @@ async def get_current_user_optional(
     if user is None or not user.is_active:
         return None
 
-    roles = ["super_admin"] if user.username == "superadmin" else ["admin"]
+    roles, is_admin = resolve_user_access(user)
     avatar_url = resolve_avatar_url(user.avatar.object_key if user.avatar else user.avatar_url)
 
     return UserResponse(
@@ -74,6 +83,7 @@ async def get_current_user_optional(
         avatar_url=avatar_url,
         roles=roles,
         is_active=user.is_active,
+        is_admin=is_admin,
     )
 
 
@@ -138,7 +148,7 @@ async def get_current_user(
             error_code="INACTIVE_USER"
         )
 
-    roles = ["super_admin"] if user.username == "superadmin" else (["admin"] if user.is_admin else ["member"])
+    roles, is_admin = resolve_user_access(user)
     avatar_url = resolve_avatar_url(user.avatar.object_key if user.avatar else user.avatar_url)
 
     return UserResponse(
@@ -149,5 +159,5 @@ async def get_current_user(
         avatar_url=avatar_url,
         roles=roles,
         is_active=user.is_active,
-        is_admin=user.is_admin,
+        is_admin=is_admin,
     )

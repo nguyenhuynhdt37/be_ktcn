@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.models.base import BaseModel
@@ -14,6 +14,16 @@ class Department(BaseModel):
     Quản lý thông tin bộ môn/khoa của trường.
     """
     __tablename__ = "departments"
+    __table_args__ = (
+        Index(
+            "uidx_department_code",
+            "code",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL AND code IS NOT NULL"),
+        ),
+        Index("idx_department_unit_type", "unit_type"),
+        Index("idx_department_parent_id", "parent_id"),
+    )
 
     code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     unit_type: Mapped[str] = mapped_column(String(30), default="department", nullable=False)
